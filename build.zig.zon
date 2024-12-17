@@ -1,0 +1,124 @@
+.{
+    .name = "zigros",
+    .version = "0.1.0",
+    .dependencies = .{
+        .python = .{
+            .lazy = true,
+            .url = "https://github.com/zig-robotics/cpython/archive/caa03c8e56aceaf1204d969fcb18e0599da03d71.tar.gz",
+            .hash = "1220fd58443573128836bf82736e18e0c5bd4b83ab1af97425bba32de0a13a329627",
+        },
+        .empy = .{
+            .lazy = true,
+            .url = "http://www.alcyone.com/software/empy/empy-3.3.4a.tar.gz",
+            .hash = "122062bad70a177eb50ef1dec9b13521bf4e2110474edffa856dfac556f165c200b4",
+        },
+        .lark = .{
+            .lazy = true,
+            .url = "https://github.com/lark-parser/lark/archive/tags/1.2.2.tar.gz",
+            .hash = "1220b44510488ffc305ab8819bfe1b176600102de66343b68f96223689c09f5a5000",
+        },
+        .rcutils = .{
+            .url = "https://github.com/ros2/rcutils/archive/tags/6.7.1.tar.gz", // Jazzy
+            .hash = "12208fec4e0de8bc11c54bd048a4991f3b21a908b852cbfddfd13eaec644479ea95a",
+        },
+        .rcpputils = .{
+            .url = "https://github.com/ros2/rcpputils/archive/tags/2.11.0.tar.gz", // Jazzy
+            .hash = "122029bc63bb4f01804e148ef0178292865e073cda5e9355696e399cb76d8281a030",
+        },
+        .rosidl = .{
+            .url = "https://github.com/ros2/rosidl/archive/tags/4.6.3.tar.gz", // Jazzy
+            .hash = "1220029efd254c33efdabebcf5d3ae78dfd3c0ea4e808c39189cc9a6bb52a6172f65",
+        },
+        .rosidl_typesupport = .{
+            .url = "https://github.com/ros2/rosidl_typesupport/archive/tags/3.2.2.tar.gz", // Jazzy
+            .hash = "122021a7c8f6e189be9a54578e6841763240605c35af5bf907ef757ffafeeb88d73e",
+        },
+        .rosidl_dynamic_typesupport = .{
+            .url = "https://github.com/ros2/rosidl_dynamic_typesupport/archive/tags/0.1.2.tar.gz", // Jazzy
+            .hash = "12207809f2552c6a12b041719fb68fcad570e604914033aa8fb8c1a45fbc80ec2618",
+        },
+        .rmw = .{
+            .url = "https://github.com/ros2/rmw/archive/tags/7.3.1.tar.gz", // Jazzy
+            .hash = "12209925f48cb608dea3c07b5320da4ad77b701e91a418087d3621c2287c0d95da37",
+        },
+        .rmw_dds_common = .{
+            .url = "https://github.com/ros2/rmw_dds_common/archive/tags/3.1.0.tar.gz", // Jazzy
+            .hash = "1220df5313ceeaa68e2dd9e53c322771fbc0dd306231beac7f95baca43daff1a82a1",
+        },
+        .rcl_logging = .{
+            .url = "https://github.com/ros2/rcl_logging/archive/tags/3.1.0.tar.gz", // Jazzy
+            .hash = "1220914b8fdad33428cfce2e7582b444c6cdcd62f7f32b891b8bd648e7697414f60f",
+        },
+        .rcl_interfaces = .{
+            .url = "https://github.com/ros2/rcl_interfaces/archive/tags/2.2.0.tar.gz", // Jazzy
+            .hash = "122056ec4c93fdcf0d978e98d75b661ee23222ed58bba18315c6b021bd1ac58ae029",
+        },
+        .ros2_tracing = .{
+            .url = "https://github.com/ros2/ros2_tracing/archive/tags/8.2.1.tar.gz", // Jazzy
+            .hash = "12209c16437ef17d56d861fcb26eaf576495edb777b71db7bc34e6d31ee126c22683",
+        },
+        .rcl = .{
+            .url = "https://github.com/ros2/rcl/archive/tags/9.2.3.tar.gz", // Jazzy
+            .hash = "122088479ee61f9f62d890936c8fe3117b6afb335aaab9291666285b1e3e569a3ade",
+        },
+        .rmw_cyclonedds = .{
+            .url = "https://github.com/ros2/rmw_cyclonedds/archive/tags/2.2.2.tar.gz", // Jazzy
+            .hash = "1220dd102e05b37f259c0e728be2fa490af52c0f711284ea1f0b6f1d74983c285d43",
+        },
+        .libstatistics_collector = .{
+            .url = "https://github.com/ros-tooling/libstatistics_collector/archive/tags/1.7.3.tar.gz", // Jazzy
+            .hash = "12203a1ab8d9b78227df96458b76532bb9c4b0877c71b746287b9b6a16adc7d46c03",
+        },
+        .ament_index = .{
+            .url = "https://github.com/ament/ament_index/archive/tags/1.8.1.tar.gz", // Jazzy
+            .hash = "12204539f04ab23cadb60d508d2bae17c1ca79e477638529f85df11821ac4e4aab4c",
+        },
+        .rclcpp = .{
+            .lazy = true,
+            .url = "https://github.com/ros2/rclcpp/archive/tags/28.1.5.tar.gz", // Jazzy
+            .hash = "122070f09ef6536fc9b6506a1d6134fc208172f7194a4d31749a98ebb8b311087bc3",
+        },
+        .rclcpp_visibility_control = .{
+            .lazy = true,
+            .url = "https://github.com/zig-robotics/ros2-rclcpp/archive/435f377374a363889b95ce011020d80d3682c24e.tar.gz", // Jazzy
+            .hash = "12203a2256fa52f58ce90669ba25cdc9e808258cab37b708aabc3987d90e76f797f8",
+        },
+        .cyclonedds = .{
+            .url = "https://github.com/zig-robotics/cyclonedds/archive/35ef373268e24fb575a8f83493eb21aaffbb7af9.tar.gz",
+            .hash = "1220605d487bc2998b478aa51edb4c379486c3f3bd96469142bb304c1b5c9600b918",
+        },
+        .yaml = .{
+            .url = "https://github.com/zig-robotics/libyaml/archive/49f779d1444ee021e0c724e2683016e99fc920dc.tar.gz",
+            .hash = "1220178dbffd6c156faeac68f9732fa5dc25c8bc02b0d07009f88757b022ff47a690",
+        },
+        .spdlog = .{
+            .url = "https://github.com/gabime/spdlog/archive/tags/v1.14.1.tar.gz",
+            .hash = "122066fc25f5e8829f0ad7163322056ee707a40f7fa234b9f536cff7dcf50bd2e84b",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "ament_index/build.zig",
+        "libstatistics_collector/build.zig",
+        "rcl/build.zig",
+        "rclcpp/build.zig",
+        "rcl_interfaces/build.zig",
+        "rcl_logging/build.zig",
+        "rcpputils/build.zig",
+        "rcutils/build.zig",
+        "rmw/build.zig",
+        "rmw_cyclonedds/build.zig",
+        "rmw_dds_common/build.zig",
+        "ros2_tracing/build.zig",
+        "rosidl/build.zig",
+        "rosidl/src/adapter_generator.zig",
+        "rosidl/src/code_generator.zig",
+        "rosidl/src/RosidlAdapter.zig",
+        "rosidl/src/RosidlGeneratorTemplate.zig",
+        "rosidl/src/RosidlGenerator.zig",
+        "rosidl/src/RosidlTypeDescription.zig",
+        "rosidl/src/type_description_generator.zig",
+        "zigros/zigros.zig",
+    },
+}
