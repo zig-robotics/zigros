@@ -31,7 +31,7 @@ fn pascalToSnake(allocator: std.mem.Allocator, in: []const u8) std.mem.Allocator
         // (the 'previous' and 'current' checks, but after 'next' is out of bounds)
         const previous = in[in.len - 2];
         const current = in[in.len - 1];
-        if (isDigit(previous) and isUpper(current) or isLower(previous) and isUpper(current)) {
+        if ((isDigit(previous) and isUpper(current)) or (isLower(previous) and isUpper(current))) {
             try out.append('_');
         }
 
