@@ -26,6 +26,15 @@ fn pascalToSnake(allocator: std.mem.Allocator, in: []const u8) std.mem.Allocator
             }
             try out.append(std.ascii.toLower(current));
         }
+
+        // Boundary condition - Handle the checks on the last character
+        // (the 'previous' and 'current' checks, but after 'next' is out of bounds)
+        const previous = in[in.len - 2];
+        const current = in[in.len - 1];
+        if ((isDigit(previous) and isUpper(current)) or (isLower(previous) and isUpper(current))) {
+            try out.append('_');
+        }
+
         try out.append(std.ascii.toLower(in[in.len - 1]));
     } else if (in.len == 2) {
         try out.append(std.ascii.toLower(in[1]));
@@ -53,6 +62,14 @@ test pascalToSnake {
     defer allocator.free(double2);
     try std.testing.expectEqualSlices(u8, "ab", double2);
 
+    const double3 = try pascalToSnake(allocator, "aB");
+    defer allocator.free(double3);
+    try std.testing.expectEqualSlices(u8, "ab", double3);
+
+    const triple = try pascalToSnake(allocator, "AbC");
+    defer allocator.free(triple);
+    try std.testing.expectEqualSlices(u8, "ab_c", triple);
+
     const multi = try pascalToSnake(allocator, "TestPascal42");
     defer allocator.free(multi);
     try std.testing.expectEqualSlices(u8, "test_pascal42", multi);
@@ -76,6 +93,10 @@ test pascalToSnake {
     const a_bit_of_everything = try pascalToSnake(allocator, "File42GPS7T3st6Wow");
     defer allocator.free(a_bit_of_everything);
     try std.testing.expectEqualSlices(u8, "file42_gps7_t3st6_wow", a_bit_of_everything);
+
+    const bug_pose2d = try pascalToSnake(allocator, "Pose2D");
+    defer allocator.free(bug_pose2d);
+    try std.testing.expectEqualSlices(u8, "pose2_d", bug_pose2d);
 }
 
 pub const CodeType = enum {
