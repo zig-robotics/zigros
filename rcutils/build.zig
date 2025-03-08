@@ -29,14 +29,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     const linkage = args.linkage;
 
     const upstream = deps.upstream;
-    var lib = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var lib = b.addLibrary(.{
+        .name = "rcutils",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rcutils",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 

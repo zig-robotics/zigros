@@ -254,14 +254,13 @@ pub fn CodeGenerator(
 
             switch (code_type) {
                 .c, .cpp => {
-                    to_return.artifact = std.Build.Step.Compile.create(b, .{
-                        .root_module = .{
+                    to_return.artifact = b.addLibrary(.{
+                        .name = artifact_name,
+                        .root_module = b.createModule(.{
                             .target = compile_args.target,
                             .optimize = compile_args.optimize,
                             .pic = if (compile_args.linkage == .dynamic) true else null,
-                        },
-                        .name = artifact_name,
-                        .kind = .lib,
+                        }),
                         .linkage = compile_args.linkage,
                     });
 

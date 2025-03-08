@@ -19,7 +19,7 @@ This page gives a general overview of how to use ZigROS, for more information on
 
 ## Getting started
 
-This assumes you have zig 0.13 installed on your system and an rclcpp ROS node to build.
+This assumes you have zig 0.14.0 installed on your system and an rclcpp ROS node to build.
 The first few steps aren't any different from how you would typically build a C project with zig.
 Start by adding a build.zig and a build.zig.zon file to the root of your ROS package.
 Add ZigROS as a dependency in your build.zig.zon.
@@ -160,17 +160,16 @@ For a more in depth look at how to structure your project to best utilize ZigROS
 I plan on continuing to integrate core ROS functionality into ZigROS.
 With that said this is being develped in parallel to rclzig and other zig-robotics projects, and I can't make commitments to a specific timeline.
 
-## Features I hope to have ready for ZigROS 0.2
- - Upgrade to Zig 0.14 which is to be released shortly
+## Features I hope to have ready for ZigROS 0.3
  - Actions
  - Remaining interfaces from rcl_interfaces
  - All interfaces from common_interfaces
  - rosbag (at least a build of rosbag2_cpp for you to integrate with your projects manually, possibly some helpers around it)
- - foxglove-bridge (as an example of a 3rd party library, also as an easy way into your project in the absense of the ros cli)
+ - foxglove-bridge (as an example of a 3rd party library, also as an easy way into your project in the absence of the ros cli)
 
 ## The following are features that I would welcome contributions for but can't/won't maintain on my own
  - windows support (would need to cross compile from linux which has some extra odd edge cases)
- - mac support (would also need to support cross complilation but should be more straight forward)
+ - mac support (would also need to support cross compilation but should be more straight forward)
  - additional RMWs (for the single RMW use case only, see below)
 
 
@@ -178,7 +177,7 @@ With that said this is being develped in parallel to rclzig and other zig-roboti
  - A easy to use cli wrapper for launching variations of nodes
    - Could fit the use case where multi process is still required (bring up many instances of the same executable with different configs)
    - Could be a sort of replacement for the python launch system
- - Minimum RMW, an RMW that does the minimum amount of work to fuffil the intra process communication requirements, nothing more.
+ - Minimum RMW, an RMW that does the minimum amount of work to fulfill the intra process communication requirements, nothing more.
    - No idea if this is even possible or what it would take 
  - multi typesupport (would requre code or generator changes to avoid dlopen in the static case)
  - multi rmw implementations (would require code or generator changes to avoid dlopen in the static case)
@@ -199,4 +198,14 @@ Thanks for reading this far!
 If you'd like to do more reading, check out the docs folder.
 It goes deeper into the background of this project, a bit on the design and why it's structured the way it is, along with other goodies.
 Let me know if this project is interesting to you, I'm looking for other ROS developers or Zig fans to explore the merits and limitations to this alternative approach.
-If there's enough interest, I'll organize a Zulip server for colaboration.
+If there's enough interest, I'll organize a Zulip server for collaboration.
+
+# Changelog
+
+## 0.2.0
+ - Updates to zig version 0.14.0
+ - [#1](https://github.com/zig-robotics/zigros/issues/1) Fix edge case when generating message names with a single trailing letter. 
+
+## 0.1.0
+Initial release. 
+Supports building a minimal version of ROS up to rclcpp for topics and services.

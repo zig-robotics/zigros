@@ -96,14 +96,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     rosidl_typesupport_interface_install.step.dependOn(&rosidl_typesupport_interface.step);
     b.getInstallStep().dependOn(&rosidl_typesupport_interface_install.step);
 
-    var rosidl_runtime_c = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rosidl_runtime_c = b.addLibrary(.{
+        .name = "rosidl_runtime_c",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rosidl_runtime_c",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -164,14 +163,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     rosidl_runtime_cpp_install.step.dependOn(&rosidl_runtime_cpp.step);
     b.getInstallStep().dependOn(&rosidl_runtime_cpp_install.step);
 
-    var rosidl_typesupport_introspection_c = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rosidl_typesupport_introspection_c = b.addLibrary(.{
+        .name = "rosidl_typesupport_introspection_c",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rosidl_typesupport_introspection_c",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -203,14 +201,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     );
     b.installArtifact(rosidl_typesupport_introspection_c);
 
-    var rosidl_typesupport_introspection_cpp = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rosidl_typesupport_introspection_cpp = b.addLibrary(.{
+        .name = "rosidl_typesupport_introspection_cpp",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rosidl_typesupport_introspection_cpp",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -292,14 +289,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     // rosidl_typesupport
     const typesupport_upstream = deps.rosidl_typesupport_upstream;
 
-    var rosidl_typesupport_c = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rosidl_typesupport_c = b.addLibrary(.{
+        .name = "rosidl_typesupport_c",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rosidl_typesupport_c",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -349,14 +345,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
 
     b.installArtifact(rosidl_typesupport_c);
 
-    var rosidl_typesupport_cpp = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rosidl_typesupport_cpp = b.addLibrary(.{
+        .name = "rosidl_typesupport_cpp",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rosidl_typesupport_cpp",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -416,14 +411,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     // rosidl_dynamic_typesupport
     const dynamic_typesupport_upstream = deps.rosidl_dynamic_typesupport_upstream;
 
-    var rosidl_dynamic_typesupport = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rosidl_dynamic_typesupport = b.addLibrary(.{
+        .name = "rosidl_dynamic_typesupport",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rosidl_dynamic_typesupport",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 

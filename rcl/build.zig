@@ -36,14 +36,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) Artifacts {
 
     const upstream = deps.upstream;
 
-    var yaml_param_parser = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var yaml_param_parser = b.addLibrary(.{
+        .name = "rcl_yaml_param_parser",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rcl_yaml_param_parser",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -76,14 +75,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) Artifacts {
     yaml_param_parser.linkLibrary(deps.rcutils);
     b.installArtifact(yaml_param_parser);
 
-    var rcl = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rcl = b.addLibrary(.{
+        .name = "rcl",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rcl",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -93,7 +91,7 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) Artifacts {
     rcl.addIncludePath(upstream.path("rcl/src"));
     rcl.installHeadersDirectory(upstream.path("rcl/include"), "", .{});
 
-    zigros.linkDependencyStruct(&rcl.root_module, deps, .c);
+    zigros.linkDependencyStruct(rcl.root_module, deps, .c);
     rcl.linkLibrary(yaml_param_parser);
 
     rcl.addCSourceFiles(.{

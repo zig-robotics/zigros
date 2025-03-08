@@ -13,10 +13,10 @@ pub const Language = enum {
 // provided, linkC is called. If .cpp is provided it calls link.
 pub fn linkDependencyStruct(module: *std.Build.Module, dependencies: anytype, lang: Language) void {
     comptime switch (@typeInfo(@TypeOf(dependencies))) {
-        .Struct => {},
+        .@"struct" => {},
         else => @compileError("dependency type must be a struct"),
     };
-    const deps_info = @typeInfo(@TypeOf(dependencies)).Struct;
+    const deps_info = @typeInfo(@TypeOf(dependencies)).@"struct";
     inline for (deps_info.fields) |field| {
         if (field.type == *std.Build.Step.Compile) {
             module.linkLibrary(@field(dependencies, field.name));

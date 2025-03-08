@@ -77,14 +77,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     logger_step.setCwd(upstream.path("rclcpp")); // for easy access to resource dir
     const logging_output = logger_step.addOutputFileArg("include/rclcpp/logging.hpp");
 
-    var rclcpp = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var rclcpp = b.addLibrary(.{
+        .name = "rclcpp",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rclcpp",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -178,7 +177,7 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
         rclcpp.installHeader(get_output, std.mem.trimLeft(u8, get_output_arg, "include/"));
     }
 
-    zigros.linkDependencyStruct(&rclcpp.root_module, deps, .cpp);
+    zigros.linkDependencyStruct(rclcpp.root_module, deps, .cpp);
 
     rclcpp.addIncludePath(upstream.path("rclcpp/include"));
     rclcpp.installHeadersDirectory(

@@ -20,14 +20,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) *Compile {
 
     const linkage = args.linkage;
     const upstream = deps.upstream;
-    var lib = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var lib = b.addLibrary(.{
+        .name = "rmw",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rmw",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -39,7 +38,7 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) *Compile {
     lib.linkLibC();
     lib.addIncludePath(upstream.path("rmw/include"));
 
-    zigros.linkDependencyStruct(&lib.root_module, deps, .c);
+    zigros.linkDependencyStruct(lib.root_module, deps, .c);
 
     lib.addCSourceFiles(.{
         .root = upstream.path("rmw"),

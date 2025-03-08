@@ -122,7 +122,7 @@ pub fn main() !u8 {
 
     for (additional_args.items) |arg| {
         // split any space separated args
-        var spliterator = std.mem.split(u8, arg, " ");
+        var spliterator = std.mem.splitScalar(u8, arg, ' ');
         while (spliterator.next()) |next_arg| {
             try argv.append(arena.allocator(), next_arg);
         }

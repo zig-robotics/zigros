@@ -377,12 +377,12 @@ pub fn addInterfaces(
 pub fn addDependency(self: *RosidlGenerator, name: []const u8, dependency: Interface) void {
     self.type_description.addIncludePath(name, dependency.share);
 
-    dependency.linkC(&self.generator_c.artifact.root_module);
-    dependency.linkC(&self.typesupport_c.artifact.root_module);
-    dependency.linkC(&self.typesupport_introspection_c.artifact.root_module);
+    dependency.linkC(self.generator_c.artifact.root_module);
+    dependency.linkC(self.typesupport_c.artifact.root_module);
+    dependency.linkC(self.typesupport_introspection_c.artifact.root_module);
 
-    dependency.link(&self.typesupport_cpp.artifact.root_module);
-    dependency.link(&self.typesupport_introspection_cpp.artifact.root_module);
+    dependency.link(self.typesupport_cpp.artifact.root_module);
+    dependency.link(self.typesupport_introspection_cpp.artifact.root_module);
 }
 
 const PythonArguments = union(enum) {

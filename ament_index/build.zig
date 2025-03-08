@@ -12,14 +12,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs) *Compile {
 
     const upstream = b.dependency("ament_index", .{});
 
-    var ament_index_cpp = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var ament_index_cpp = b.addLibrary(.{
+        .name = "ament_index_cpp",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "ament_index_cpp",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 

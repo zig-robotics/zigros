@@ -14,9 +14,9 @@ Lets have a look at what it takes to build ROS via zig.
 The following script downloads zig and an example node using ZigROS builds it, then runs it.
 
 ```sh
-wget -qO- https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz | tar xJv
+wget -qO- https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz | tar xJv
 wget -qO- https://github.com/zig-robotics/rclcpp_example/archive/refs/heads/main.tar.gz | tar xzv
-cd rclcpp_example-main; ../zig-linux-x86_64-0.13.0/zig build -Doptimize=ReleaseFast -Dtarget=x86_64-linux-musl --summary none  
+cd rclcpp_example-main; ../zig-linux-x86_64-0.14.0/zig build -Doptimize=ReleaseFast -Dtarget=x86_64-linux-musl --summary none  
 ./zig-out/bin/node
 ```
 

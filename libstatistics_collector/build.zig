@@ -37,14 +37,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) *Compile {
 
     const upstream = deps.upstream;
 
-    var lib = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var lib = b.addLibrary(.{
+        .name = "libstatistics_collector",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "libstatistics_collector",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -61,7 +60,7 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) *Compile {
         .{ .include_extensions = &.{ ".h", ".hpp" } },
     );
 
-    zigros.linkDependencyStruct(&lib.root_module, deps, .cpp);
+    zigros.linkDependencyStruct(lib.root_module, deps, .cpp);
 
     lib.addCSourceFiles(.{
         .root = upstream.path("src"),

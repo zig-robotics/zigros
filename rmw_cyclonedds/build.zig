@@ -32,14 +32,13 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) *Compile {
 
     const linkage = args.linkage;
     const upstream = deps.upstream;
-    var lib = std.Build.Step.Compile.create(b, .{
-        .root_module = .{
+    var lib = b.addLibrary(.{
+        .name = "rmw_cyclonedds_cpp",
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .pic = if (linkage == .dynamic) true else null,
-        },
-        .name = "rmw_cyclonedds_cpp",
-        .kind = .lib,
+        }),
         .linkage = linkage,
     });
 
@@ -50,7 +49,7 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) *Compile {
 
     lib.linkLibCpp();
 
-    zigros.linkDependencyStruct(&lib.root_module, deps, .cpp);
+    zigros.linkDependencyStruct(lib.root_module, deps, .cpp);
 
     lib.addIncludePath(upstream.path("rmw_cyclonedds/rmw_cyclonedds_cpp/src"));
     lib.addCSourceFiles(.{

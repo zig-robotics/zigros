@@ -205,7 +205,8 @@ pub const ZigRos = struct {
                 .rosidl_typesupport_cpp = dep.namedWriteFiles("rosidl_typesupport_cpp").getDirectory(),
             },
             .python = if (!system_python)
-                .{ .build = dep.builder.lazyDependency("python", python_build_args).?.artifact("cpython") }
+                // note python is forced to musl to fix an issue building within alpine
+                .{ .build = dep.builder.lazyDependency("python", .{ .optimize = .ReleaseFast, .target = dep.builder.resolveTargetQuery(.{ .abi = .musl }) }).?.artifact("cpython") }
             else
                 .{ .system = system_python_exe },
             .type_description_generator = dep.artifact("type_description_generator"),
@@ -303,7 +304,6 @@ pub const ZigRos = struct {
 const system_python_default = false;
 const system_python_arg_name = "system-python";
 const system_python_exe = "python3";
-const python_build_args = .{ .optimize = .ReleaseFast };
 
 pub fn build(b: *std.Build) void {
     // Common compile arguments that all ROS subbuilds accept
@@ -373,7 +373,9 @@ pub fn build(b: *std.Build) void {
     else blk: {
         const empy = b.lazyDependency("empy", .{});
         const lark = b.lazyDependency("lark", .{});
-        const py = b.lazyDependency("python", python_build_args);
+        // note python is forced to musl to fix an issue building within alpine.
+        // The target here is native + musl since python is only used during build.
+        const py = b.lazyDependency("python", .{ .optimize = .ReleaseFast, .target = b.resolveTargetQuery(.{ .abi = .musl }) });
         if (empy != null and lark != null and py != null) {
             python_libraries.empy = empy.?.path("");
             python_libraries.lark = lark.?.path("");
