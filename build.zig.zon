@@ -107,6 +107,7 @@
         "build.zig.zon",
         "ament_index/build.zig",
         "libstatistics_collector/build.zig",
+        "common_interfaces/build.zig",
         "rcl/build.zig",
         "rclcpp/build.zig",
         "rcl_interfaces/build.zig",
