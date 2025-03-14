@@ -9,6 +9,7 @@ const rmw = @import("rmw/build.zig");
 const rmw_dds_common = @import("rmw_dds_common/build.zig");
 const rcl_logging = @import("rcl_logging/build.zig");
 const rcl_interfaces = @import("rcl_interfaces/build.zig");
+const common_interfaces = @import("common_interfaces/build.zig");
 const ros2_tracing = @import("ros2_tracing/build.zig");
 const rcl = @import("rcl/build.zig");
 const rmw_cyclonedds = @import("rmw_cyclonedds/build.zig");
@@ -33,6 +34,7 @@ const UpstreamDependencies = struct {
     rcl_logging: *Dependency,
     spdlog: *Dependency,
     rcl_interfaces: *Dependency,
+    common_interfaces: *Dependency,
     ros2_tracing: *Dependency,
     rcl: *Dependency,
     rmw_cyclonedds: *Dependency,
@@ -72,6 +74,18 @@ const RosLibraries = struct {
     libstatistics_collector: *Compile,
     ament_index_cpp: *Compile,
     rclcpp: *Compile,
+    // common_interfaces:
+    actionlib_msgs: RosidlGenerator.Interface,
+    diagnostic_msgs: RosidlGenerator.Interface,
+    geometry_msgs: RosidlGenerator.Interface,
+    nav_msgs: RosidlGenerator.Interface,
+    sensor_msgs: RosidlGenerator.Interface,
+    shape_msgs: RosidlGenerator.Interface,
+    std_msgs: RosidlGenerator.Interface,
+    std_srvs: RosidlGenerator.Interface,
+    stereo_msgs: RosidlGenerator.Interface,
+    trajectory_msgs: RosidlGenerator.Interface,
+    visualization_msgs: RosidlGenerator.Interface,
 };
 
 const PythonLibraries = struct {
@@ -132,6 +146,8 @@ fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGenerato
 // The build/configure step sets this if its missing lazy deps which allows the ZigRos init call to return null if it's not set
 var lazy_deps_needed = false;
 
+pub const CompileArgs = zigros.CompileArgs;
+
 pub const ZigRos = struct {
     ros_libraries: RosLibraries,
     python_libraries: PythonLibraries,
@@ -187,6 +203,17 @@ pub const ZigRos = struct {
                 .libstatistics_collector = dep.artifact("libstatistics_collector"),
                 .ament_index_cpp = dep.artifact("ament_index_cpp"),
                 .rclcpp = dep.artifact("rclcpp"),
+                .actionlib_msgs = extractInterface(dep, "actionlib_msgs"),
+                .diagnostic_msgs = extractInterface(dep, "diagnostic_msgs"),
+                .geometry_msgs = extractInterface(dep, "geometry_msgs"),
+                .nav_msgs = extractInterface(dep, "nav_msgs"),
+                .sensor_msgs = extractInterface(dep, "sensor_msgs"),
+                .shape_msgs = extractInterface(dep, "shape_msgs"),
+                .std_msgs = extractInterface(dep, "std_msgs"),
+                .std_srvs = extractInterface(dep, "std_srvs"),
+                .stereo_msgs = extractInterface(dep, "stereo_msgs"),
+                .trajectory_msgs = extractInterface(dep, "trajectory_msgs"),
+                .visualization_msgs = extractInterface(dep, "visualization_msgs"),
             },
             .python_libraries = .{
                 .empy = if (!system_python) dep.builder.lazyDependency("empy", .{}).?.path("") else null,
@@ -228,6 +255,18 @@ pub const ZigRos = struct {
         self.ros_libraries.builtin_interfaces.linkC(module);
         module.addIncludePath(self.ros_libraries.rosidl_typesupport_interface);
         module.linkLibrary(self.ros_libraries.rosidl_dynamic_typesupport);
+
+        self.ros_libraries.actionlib_msgs.linkC(module);
+        self.ros_libraries.diagnostic_msgs.linkC(module);
+        self.ros_libraries.geometry_msgs.linkC(module);
+        self.ros_libraries.nav_msgs.linkC(module);
+        self.ros_libraries.sensor_msgs.linkC(module);
+        self.ros_libraries.shape_msgs.linkC(module);
+        self.ros_libraries.std_msgs.linkC(module);
+        self.ros_libraries.std_srvs.linkC(module);
+        self.ros_libraries.stereo_msgs.linkC(module);
+        self.ros_libraries.trajectory_msgs.linkC(module);
+        self.ros_libraries.visualization_msgs.linkC(module);
     }
 
     pub fn linkRclcpp(self: ZigRos, module: *Module) void {
@@ -238,6 +277,18 @@ pub const ZigRos = struct {
         self.ros_libraries.builtin_interfaces.linkCpp(module);
         self.ros_libraries.statistics_msgs.link(module);
         self.ros_libraries.rosgraph_msgs.link(module);
+
+        self.ros_libraries.actionlib_msgs.linkCpp(module);
+        self.ros_libraries.diagnostic_msgs.linkCpp(module);
+        self.ros_libraries.geometry_msgs.linkCpp(module);
+        self.ros_libraries.nav_msgs.linkCpp(module);
+        self.ros_libraries.sensor_msgs.linkCpp(module);
+        self.ros_libraries.shape_msgs.linkCpp(module);
+        self.ros_libraries.std_msgs.linkCpp(module);
+        self.ros_libraries.std_srvs.linkCpp(module);
+        self.ros_libraries.stereo_msgs.linkCpp(module);
+        self.ros_libraries.trajectory_msgs.linkCpp(module);
+        self.ros_libraries.visualization_msgs.linkCpp(module);
 
         module.addIncludePath(self.ros_libraries.tracetools);
         module.addIncludePath(self.ros_libraries.rosidl_runtime_cpp);
@@ -354,6 +405,7 @@ pub fn build(b: *std.Build) void {
         .rcl_logging = b.dependency("rcl_logging", .{}),
         .spdlog = b.dependency("spdlog", .{}),
         .rcl_interfaces = b.dependency("rcl_interfaces", .{}),
+        .common_interfaces = b.dependency("ros2_common_interfaces", .{}),
         .ros2_tracing = b.dependency("ros2_tracing", .{}),
         .rcl = b.dependency("rcl", .{}),
         .rmw_cyclonedds = b.dependency("rmw_cyclonedds", .{}),
@@ -515,9 +567,7 @@ pub fn build(b: *std.Build) void {
             .upstream = upstream_dependencies.rcl_interfaces,
             .rosidl_generator = rosidl_generator_deps,
         },
-        .{
-            .rosidl_generator = rosidl_generator_build_deps,
-        },
+        .{ .rosidl_generator = rosidl_generator_build_deps },
     );
 
     ros_libraries.builtin_interfaces = rcl_interfaces_artifacts.builtin_interfaces;
@@ -529,6 +579,32 @@ pub fn build(b: *std.Build) void {
     ros_libraries.rcl_interfaces = rcl_interfaces_artifacts.rcl_interfaces;
 
     ros_libraries.tracetools = ros2_tracing.build(b);
+
+    const common_interfaces_artifacts = common_interfaces.buildWithArgs(
+        b,
+        compile_args,
+        .{
+            .upstream = upstream_dependencies.common_interfaces,
+            .rosidl_generator = rosidl_generator_deps,
+            .builtin_interfaces = rcl_interfaces_artifacts.builtin_interfaces,
+            .service_msgs = rcl_interfaces_artifacts.service_msgs,
+        },
+        .{
+            .rosidl_generator = rosidl_generator_build_deps,
+        },
+    );
+
+    ros_libraries.actionlib_msgs = common_interfaces_artifacts.actionlib_msgs;
+    ros_libraries.diagnostic_msgs = common_interfaces_artifacts.diagnostic_msgs;
+    ros_libraries.geometry_msgs = common_interfaces_artifacts.geometry_msgs;
+    ros_libraries.nav_msgs = common_interfaces_artifacts.nav_msgs;
+    ros_libraries.sensor_msgs = common_interfaces_artifacts.sensor_msgs;
+    ros_libraries.shape_msgs = common_interfaces_artifacts.shape_msgs;
+    ros_libraries.std_msgs = common_interfaces_artifacts.std_msgs;
+    ros_libraries.std_srvs = common_interfaces_artifacts.std_srvs;
+    ros_libraries.stereo_msgs = common_interfaces_artifacts.stereo_msgs;
+    ros_libraries.trajectory_msgs = common_interfaces_artifacts.trajectory_msgs;
+    ros_libraries.visualization_msgs = common_interfaces_artifacts.visualization_msgs;
 
     ros_libraries.yaml = b.dependency("yaml", compile_args).artifact("yaml");
     // re export yaml so we can grab it directly from the zigros dependency later
