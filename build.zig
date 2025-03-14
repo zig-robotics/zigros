@@ -146,9 +146,9 @@ fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGenerato
 // The build/configure step sets this if its missing lazy deps which allows the ZigRos init call to return null if it's not set
 var lazy_deps_needed = false;
 
-pub const CompileArgs = zigros.CompileArgs;
-
 pub const ZigRos = struct {
+    pub const CompileArgs = zigros.CompileArgs;
+
     ros_libraries: RosLibraries,
     python_libraries: PythonLibraries,
     python: zigros.PythonDep,
