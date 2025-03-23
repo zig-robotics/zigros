@@ -147,8 +147,6 @@ fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGenerato
 var lazy_deps_needed = false;
 
 pub const ZigRos = struct {
-    pub const CompileArgs = zigros.CompileArgs;
-
     ros_libraries: RosLibraries,
     python_libraries: PythonLibraries,
     python: zigros.PythonDep,
@@ -255,18 +253,6 @@ pub const ZigRos = struct {
         self.ros_libraries.builtin_interfaces.linkC(module);
         module.addIncludePath(self.ros_libraries.rosidl_typesupport_interface);
         module.linkLibrary(self.ros_libraries.rosidl_dynamic_typesupport);
-
-        self.ros_libraries.actionlib_msgs.linkC(module);
-        self.ros_libraries.diagnostic_msgs.linkC(module);
-        self.ros_libraries.geometry_msgs.linkC(module);
-        self.ros_libraries.nav_msgs.linkC(module);
-        self.ros_libraries.sensor_msgs.linkC(module);
-        self.ros_libraries.shape_msgs.linkC(module);
-        self.ros_libraries.std_msgs.linkC(module);
-        self.ros_libraries.std_srvs.linkC(module);
-        self.ros_libraries.stereo_msgs.linkC(module);
-        self.ros_libraries.trajectory_msgs.linkC(module);
-        self.ros_libraries.visualization_msgs.linkC(module);
     }
 
     pub fn linkRclcpp(self: ZigRos, module: *Module) void {
@@ -277,18 +263,6 @@ pub const ZigRos = struct {
         self.ros_libraries.builtin_interfaces.linkCpp(module);
         self.ros_libraries.statistics_msgs.link(module);
         self.ros_libraries.rosgraph_msgs.link(module);
-
-        self.ros_libraries.actionlib_msgs.linkCpp(module);
-        self.ros_libraries.diagnostic_msgs.linkCpp(module);
-        self.ros_libraries.geometry_msgs.linkCpp(module);
-        self.ros_libraries.nav_msgs.linkCpp(module);
-        self.ros_libraries.sensor_msgs.linkCpp(module);
-        self.ros_libraries.shape_msgs.linkCpp(module);
-        self.ros_libraries.std_msgs.linkCpp(module);
-        self.ros_libraries.std_srvs.linkCpp(module);
-        self.ros_libraries.stereo_msgs.linkCpp(module);
-        self.ros_libraries.trajectory_msgs.linkCpp(module);
-        self.ros_libraries.visualization_msgs.linkCpp(module);
 
         module.addIncludePath(self.ros_libraries.tracetools);
         module.addIncludePath(self.ros_libraries.rosidl_runtime_cpp);
