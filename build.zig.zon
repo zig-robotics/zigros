@@ -85,6 +85,10 @@
             .url = "https://github.com/zig-robotics/ros2-rclcpp/archive/435f377374a363889b95ce011020d80d3682c24e.tar.gz", // Jazzy
             .hash = "N-V-__8AAFLpQAA6Ilb6UvWM6QZpuiXNyegIJYyrN7cIqrw5",
         },
+        .ros2_common_interfaces = .{
+            .url = "https://github.com/ros2/common_interfaces/archive/refs/tags/5.4.2.tar.gz",
+            .hash = "N-V-__8AAJatCADp2QPDFq8wzBG--OTM2oVMdj3kk5FLvnk0",
+        },
         .cyclonedds = .{
             .url = "https://github.com/zig-robotics/cyclonedds/archive/tags/0.10.5.tar.gz",
             .hash = "cyclonedds-0.10.5-VJFfyyI6AADru0dTKFhIVjebuuArgt68TI77ARc1_qD8",
@@ -103,6 +107,7 @@
         "build.zig.zon",
         "ament_index/build.zig",
         "libstatistics_collector/build.zig",
+        "common_interfaces/build.zig",
         "rcl/build.zig",
         "rclcpp/build.zig",
         "rcl_interfaces/build.zig",
