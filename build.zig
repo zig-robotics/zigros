@@ -147,6 +147,7 @@ fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGenerato
 var lazy_deps_needed = false;
 
 pub const ZigRos = struct {
+    pub const CompileArgs = zigros.CompileArgs;
     ros_libraries: RosLibraries,
     python_libraries: PythonLibraries,
     python: zigros.PythonDep,
