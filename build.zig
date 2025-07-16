@@ -106,7 +106,7 @@ const PythonLibraries = struct {
 };
 
 //  Extracts the expected artifacts given a package name
-fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGenerator.Interface {
+pub fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGenerator.Interface {
     var buf: [256]u8 = undefined;
     return RosidlGenerator.Interface{
         .share = dep.namedWriteFiles(name).getDirectory(),
@@ -140,192 +140,88 @@ fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGenerato
             "{s}__rosidl_typesupport_introspection_cpp",
             .{name},
         ) catch @panic("Buffer too small")),
+        .c = dep.artifact(std.fmt.bufPrint(
+            &buf,
+            "{s}_c",
+            .{name},
+        ) catch @panic("Buffer too small")),
+        .cpp = dep.artifact(std.fmt.bufPrint(
+            &buf,
+            "{s}_cpp",
+            .{name},
+        ) catch @panic("Buffer too small")),
     };
 }
 
 // The build/configure step sets this if its missing lazy deps which allows the ZigRos init call to return null if it's not set
-var lazy_deps_needed = false;
-
-pub const ZigRos = struct {
-    pub const CompileArgs = zigros.CompileArgs;
-    ros_libraries: RosLibraries,
-    python_libraries: PythonLibraries,
-    python: zigros.PythonDep,
-    type_description_generator: *Compile,
-    adapter_generator: *Compile,
-    code_generator: *Compile,
-
-    // Will return null if lazy_deps_needed is set
-    pub fn init(dep: *std.Build.Dependency) ?ZigRos {
-        if (lazy_deps_needed) return null;
-        const system_python = if (dep.builder.user_input_options.get(system_python_arg_name)) |option| switch (option.value) {
-            .flag => true,
-            .scalar => |s| std.mem.eql(u8, s, "true"),
-            else => system_python_default,
-        } else system_python_default;
-
-        return ZigRos{
-            .ros_libraries = .{
-                .rcutils = dep.artifact("rcutils"),
-                .rcpputils = dep.artifact("rcpputils"),
-                .rosidl_typesupport_interface = dep.namedWriteFiles(
-                    "rosidl_typesupport_interface",
-                ).getDirectory(),
-                .rosidl_runtime_c = dep.artifact("rosidl_runtime_c"),
-                .rosidl_runtime_cpp = dep.namedWriteFiles("rosidl_runtime_cpp").getDirectory(),
-                .rosidl_typesupport_c = dep.artifact("rosidl_typesupport_c"),
-                .rosidl_typesupport_cpp = dep.artifact("rosidl_typesupport_cpp"),
-                .rosidl_typesupport_introspection_c = dep.artifact(
-                    "rosidl_typesupport_introspection_c",
-                ),
-                .rosidl_typesupport_introspection_cpp = dep.artifact(
-                    "rosidl_typesupport_introspection_cpp",
-                ),
-                .rosidl_dynamic_typesupport = dep.artifact("rosidl_dynamic_typesupport"),
-                .rmw = dep.artifact("rmw"),
-                .rmw_dds_common = dep.artifact("rmw_dds_common"),
-                .rmw_dds_common_interface = extractInterface(dep, "rmw_dds_common"),
-                .rcl_logging_interface = dep.artifact("rcl_logging_interface"),
-                .rcl_logging_spdlog = dep.artifact("rcl_logging_spdlog"),
-                .builtin_interfaces = extractInterface(dep, "builtin_interfaces"),
-                .rosgraph_msgs = extractInterface(dep, "rosgraph_msgs"),
-                .service_msgs = extractInterface(dep, "service_msgs"),
-                .type_description_interfaces = extractInterface(dep, "type_description_interfaces"),
-                .statistics_msgs = extractInterface(dep, "statistics_msgs"),
-                .rcl_interfaces = extractInterface(dep, "rcl_interfaces"),
-                .tracetools = dep.namedWriteFiles("tracetools").getDirectory(),
-                .rcl_yaml_param_parser = dep.artifact("rcl_yaml_param_parser"),
-                .yaml = dep.artifact("yaml"), // External
-                .rcl = dep.artifact("rcl"),
-                .rmw_cyclonedds_cpp = dep.artifact("rmw_cyclonedds_cpp"),
-                .cyclonedds = dep.artifact("cyclonedds"), // External
-                .libstatistics_collector = dep.artifact("libstatistics_collector"),
-                .ament_index_cpp = dep.artifact("ament_index_cpp"),
-                .rclcpp = dep.artifact("rclcpp"),
-                .actionlib_msgs = extractInterface(dep, "actionlib_msgs"),
-                .diagnostic_msgs = extractInterface(dep, "diagnostic_msgs"),
-                .geometry_msgs = extractInterface(dep, "geometry_msgs"),
-                .nav_msgs = extractInterface(dep, "nav_msgs"),
-                .sensor_msgs = extractInterface(dep, "sensor_msgs"),
-                .shape_msgs = extractInterface(dep, "shape_msgs"),
-                .std_msgs = extractInterface(dep, "std_msgs"),
-                .std_srvs = extractInterface(dep, "std_srvs"),
-                .stereo_msgs = extractInterface(dep, "stereo_msgs"),
-                .trajectory_msgs = extractInterface(dep, "trajectory_msgs"),
-                .visualization_msgs = extractInterface(dep, "visualization_msgs"),
-            },
-            .python_libraries = .{
-                .empy = if (!system_python) dep.builder.lazyDependency("empy", .{}).?.path("") else null,
-                .lark = if (!system_python) dep.builder.lazyDependency("lark", .{}).?.path("") else null,
-                .rcutils = dep.namedWriteFiles("rcutils").getDirectory(),
-                .rosidl_adapter = dep.namedWriteFiles("rosidl_adapter").getDirectory(),
-                .rosidl_cli = dep.namedWriteFiles("rosidl_cli").getDirectory(),
-                .rosidl_pycommon = dep.namedWriteFiles("rosidl_pycommon").getDirectory(),
-                .rosidl_generator_c = dep.namedWriteFiles("rosidl_generator_c").getDirectory(),
-                .rosidl_generator_cpp = dep.namedWriteFiles("rosidl_generator_cpp").getDirectory(),
-                .rosidl_generator_type_description = dep.namedWriteFiles("rosidl_generator_type_description").getDirectory(),
-                .rosidl_parser = dep.namedWriteFiles("rosidl_parser").getDirectory(),
-                .rosidl_typesupport_introspection_c = dep.namedWriteFiles("rosidl_typesupport_introspection_c").getDirectory(),
-                .rosidl_typesupport_introspection_cpp = dep.namedWriteFiles("rosidl_typesupport_introspection_cpp").getDirectory(),
-                .rosidl_typesupport_c = dep.namedWriteFiles("rosidl_typesupport_c").getDirectory(),
-                .rosidl_typesupport_cpp = dep.namedWriteFiles("rosidl_typesupport_cpp").getDirectory(),
-            },
+var lazy_deps_needed = false; // TODO this shouldn't need to be global anymore?
+pub fn createInterface(
+    dep: *std.Build.Dependency,
+    b: *std.Build,
+    name: []const u8,
+    compile_args: zigros.CompileArgs,
+) ?*RosidlGenerator {
+    const system_python = if (dep.builder.user_input_options.get(system_python_arg_name)) |option| switch (option.value) {
+        .flag => true,
+        .scalar => |s| std.mem.eql(u8, s, "true"),
+        else => system_python_default,
+    } else system_python_default;
+    // if (lazy_deps_needed) return null; // TODO is this still required?
+    // If built python is used, mark the lazy dependencies as required by early fetching and returning null if any are missing
+    var python: ?*std.Build.Dependency = null;
+    var empy: ?*std.Build.Dependency = null;
+    var lark: ?*std.Build.Dependency = null;
+    if (!system_python) {
+        python = dep.builder.lazyDependency("python", .{ .optimize = .ReleaseFast, .target = dep.builder.resolveTargetQuery(.{ .abi = .musl }) });
+        empy = dep.builder.lazyDependency("empy", .{});
+        lark = dep.builder.lazyDependency("lark", .{});
+        if (empy == null or lark == null or python == null) return null;
+    }
+    return RosidlGenerator.create(
+        b,
+        name,
+        .{
+            .rcutils = dep.artifact("rcutils"),
+            .rosidl_typesupport_interface = dep.namedWriteFiles(
+                "rosidl_typesupport_interface",
+            ).getDirectory(),
+            .rosidl_runtime_c = dep.artifact("rosidl_runtime_c"),
+            .rosidl_runtime_cpp = dep.namedWriteFiles("rosidl_runtime_cpp").getDirectory(),
+            .rosidl_typesupport_c = dep.artifact("rosidl_typesupport_c"),
+            .rosidl_typesupport_cpp = dep.artifact("rosidl_typesupport_cpp"),
+            .rosidl_typesupport_introspection_c = dep.artifact(
+                "rosidl_typesupport_introspection_c",
+            ),
+            .rosidl_typesupport_introspection_cpp = dep.artifact(
+                "rosidl_typesupport_introspection_cpp",
+            ),
+        },
+        .{
             .python = if (!system_python)
                 // note python is forced to musl to fix an issue building within alpine
-                .{ .build = dep.builder.lazyDependency("python", .{ .optimize = .ReleaseFast, .target = dep.builder.resolveTargetQuery(.{ .abi = .musl }) }).?.artifact("cpython") }
+                .{ .build = python.?.artifact("cpython") }
             else
                 .{ .system = system_python_exe },
+            .empy = if (!system_python) empy.?.path("") else null,
+            .lark = if (!system_python) lark.?.path("") else null,
+            .rosidl_adapter = dep.namedWriteFiles("rosidl_adapter").getDirectory(),
+            .rosidl_cli = dep.namedWriteFiles("rosidl_cli").getDirectory(),
+            .rosidl_pycommon = dep.namedWriteFiles("rosidl_pycommon").getDirectory(),
+            .rosidl_generator_c = dep.namedWriteFiles("rosidl_generator_c").getDirectory(),
+            .rosidl_generator_cpp = dep.namedWriteFiles("rosidl_generator_cpp").getDirectory(),
+            .rosidl_generator_type_description = dep.namedWriteFiles("rosidl_generator_type_description").getDirectory(),
+            .rosidl_parser = dep.namedWriteFiles("rosidl_parser").getDirectory(),
+            .rosidl_typesupport_introspection_c = dep.namedWriteFiles("rosidl_typesupport_introspection_c").getDirectory(),
+            .rosidl_typesupport_introspection_cpp = dep.namedWriteFiles("rosidl_typesupport_introspection_cpp").getDirectory(),
+            .rosidl_typesupport_c = dep.namedWriteFiles("rosidl_typesupport_c").getDirectory(),
+            .rosidl_typesupport_cpp = dep.namedWriteFiles("rosidl_typesupport_cpp").getDirectory(),
             .type_description_generator = dep.artifact("type_description_generator"),
             .adapter_generator = dep.artifact("adapter_generator"),
             .code_generator = dep.artifact("code_generator"),
-        };
-    }
-
-    pub fn linkRcl(self: ZigRos, module: *Module) void {
-        module.linkLibrary(self.ros_libraries.rcutils);
-        module.linkLibrary(self.ros_libraries.rcl);
-        module.linkLibrary(self.ros_libraries.rmw);
-        module.linkLibrary(self.ros_libraries.rcl_yaml_param_parser);
-        module.linkLibrary(self.ros_libraries.yaml);
-        self.ros_libraries.rcl_interfaces.linkC(module);
-        self.ros_libraries.type_description_interfaces.linkC(module);
-        module.linkLibrary(self.ros_libraries.rosidl_runtime_c);
-        self.ros_libraries.service_msgs.linkC(module);
-        self.ros_libraries.builtin_interfaces.linkC(module);
-        module.addIncludePath(self.ros_libraries.rosidl_typesupport_interface);
-        module.linkLibrary(self.ros_libraries.rosidl_dynamic_typesupport);
-    }
-
-    pub fn linkRclcpp(self: ZigRos, module: *Module) void {
-        self.linkRcl(module);
-        self.ros_libraries.rcl_interfaces.linkCpp(module);
-        self.ros_libraries.type_description_interfaces.linkCpp(module);
-        self.ros_libraries.service_msgs.linkCpp(module);
-        self.ros_libraries.builtin_interfaces.linkCpp(module);
-        self.ros_libraries.statistics_msgs.link(module);
-        self.ros_libraries.rosgraph_msgs.link(module);
-
-        module.addIncludePath(self.ros_libraries.tracetools);
-        module.addIncludePath(self.ros_libraries.rosidl_runtime_cpp);
-        module.linkLibrary(self.ros_libraries.rosidl_typesupport_introspection_cpp);
-        module.linkLibrary(self.ros_libraries.libstatistics_collector);
-        module.linkLibrary(self.ros_libraries.ament_index_cpp);
-        module.linkLibrary(self.ros_libraries.rclcpp);
-        module.linkLibrary(self.ros_libraries.rcpputils);
-    }
-
-    pub fn linkRmwCycloneDds(self: ZigRos, module: *Module) void {
-        module.linkLibrary(self.ros_libraries.rmw_cyclonedds_cpp);
-        module.linkLibrary(self.ros_libraries.cyclonedds);
-    }
-
-    pub fn linkLoggerSpd(self: ZigRos, module: *Module) void {
-        module.linkLibrary(self.ros_libraries.rcl_logging_spdlog);
-    }
-
-    pub fn createInterface(
-        self: ZigRos,
-        b: *std.Build,
-        name: []const u8,
-        compile_args: zigros.CompileArgs,
-    ) *RosidlGenerator {
-        // TODO fix this. we need the correct python at some time
-        return RosidlGenerator.create(
-            b,
-            name,
-            .{
-                .rosidl_runtime_c = self.ros_libraries.rosidl_runtime_c,
-                .rosidl_runtime_cpp = self.ros_libraries.rosidl_runtime_cpp,
-                .rosidl_typesupport_interface = self.ros_libraries.rosidl_typesupport_interface,
-                .rosidl_typesupport_c = self.ros_libraries.rosidl_typesupport_c,
-                .rosidl_typesupport_cpp = self.ros_libraries.rosidl_typesupport_cpp,
-                .rosidl_typesupport_introspection_c = self.ros_libraries.rosidl_typesupport_introspection_c,
-                .rosidl_typesupport_introspection_cpp = self.ros_libraries.rosidl_typesupport_introspection_cpp,
-                .rcutils = self.ros_libraries.rcutils,
-            },
-            .{
-                .python = self.python, // TODO not sure how to get the correct python;
-                .empy = self.python_libraries.empy,
-                .lark = self.python_libraries.lark,
-                .rosidl_cli = self.python_libraries.rosidl_cli,
-                .rosidl_adapter = self.python_libraries.rosidl_adapter,
-                .rosidl_parser = self.python_libraries.rosidl_parser,
-                .rosidl_pycommon = self.python_libraries.rosidl_pycommon,
-                .rosidl_generator_type_description = self.python_libraries.rosidl_generator_type_description,
-                .rosidl_generator_c = self.python_libraries.rosidl_generator_c,
-                .rosidl_generator_cpp = self.python_libraries.rosidl_generator_cpp,
-                .rosidl_typesupport_c = self.python_libraries.rosidl_typesupport_c,
-                .rosidl_typesupport_cpp = self.python_libraries.rosidl_typesupport_cpp,
-                .rosidl_typesupport_introspection_c = self.python_libraries.rosidl_typesupport_introspection_c,
-                .rosidl_typesupport_introspection_cpp = self.python_libraries.rosidl_typesupport_introspection_cpp,
-                .type_description_generator = self.type_description_generator,
-                .adapter_generator = self.adapter_generator,
-                .code_generator = self.code_generator,
-            },
-            compile_args,
-        );
-    }
-};
+        },
+        compile_args,
+    );
+}
 
 const system_python_default = false;
 const system_python_arg_name = "system-python";
@@ -655,15 +551,15 @@ pub fn build(b: *std.Build) void {
     ros_libraries.rclcpp = rclcpp.buildWithArgs(b, compile_args, .{
         .upstream = upstream_dependencies.rclcpp,
         .rcl = ros_libraries.rcl,
-        .rcl_yaml_param_parser = ros_libraries.rcl_yaml_param_parser,
-        .rcl_logging_interface = ros_libraries.rcl_logging_interface,
-        .yaml = ros_libraries.yaml,
-        .rcutils = ros_libraries.rcutils,
-        .rmw = ros_libraries.rmw,
-        .rosidl_dynamic_typesupport = ros_libraries.rosidl_dynamic_typesupport,
-        .rosidl_runtime_c = ros_libraries.rosidl_runtime_c,
-        .rosidl_typesupport_interface = ros_libraries.rosidl_typesupport_interface,
-        .tracetools = ros_libraries.tracetools,
+        // .rcl_yaml_param_parser = ros_libraries.rcl_yaml_param_parser,
+        // .rcl_logging_interface = ros_libraries.rcl_logging_interface,
+        // .yaml = ros_libraries.yaml,
+        // .rcutils = ros_libraries.rcutils,
+        // .rmw = ros_libraries.rmw,
+        // .rosidl_dynamic_typesupport = ros_libraries.rosidl_dynamic_typesupport,
+        // .rosidl_runtime_c = ros_libraries.rosidl_runtime_c,
+        // .rosidl_typesupport_interface = ros_libraries.rosidl_typesupport_interface,
+        // .tracetools = ros_libraries.tracetools,
         .type_description_interfaces = ros_libraries.type_description_interfaces,
         .service_msgs = ros_libraries.service_msgs,
         .builtin_interfaces = ros_libraries.builtin_interfaces,

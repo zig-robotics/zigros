@@ -91,8 +91,9 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps) Artifacts {
     rcl.addIncludePath(upstream.path("rcl/src"));
     rcl.installHeadersDirectory(upstream.path("rcl/include"), "", .{});
 
-    zigros.linkDependencyStruct(rcl.root_module, deps, .c);
+    zigros.linkDependencyStructForwardIncludes(rcl, deps, .c);
     rcl.linkLibrary(yaml_param_parser);
+    rcl.installLibraryHeaders(yaml_param_parser);
 
     rcl.addCSourceFiles(.{
         .root = upstream.path("rcl/src/rcl"),

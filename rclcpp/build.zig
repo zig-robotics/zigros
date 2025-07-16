@@ -12,15 +12,15 @@ const PythonDep = zigros.PythonDep;
 pub const Deps = struct {
     upstream: *Dependency,
     rcl: *Compile,
-    rcl_yaml_param_parser: *Compile,
-    rcl_logging_interface: *Compile,
-    yaml: *Compile,
-    rcutils: *Compile,
-    rmw: *Compile,
-    rosidl_dynamic_typesupport: *Compile,
-    rosidl_runtime_c: *Compile,
-    rosidl_typesupport_interface: LazyPath,
-    tracetools: LazyPath,
+    // rcl_yaml_param_parser: *Compile,
+    // rcl_logging_interface: *Compile,
+    // yaml: *Compile,
+    // rcutils: *Compile,
+    // rmw: *Compile,
+    // rosidl_dynamic_typesupport: *Compile,
+    // rosidl_runtime_c: *Compile,
+    // rosidl_typesupport_interface: LazyPath,
+    // tracetools: LazyPath,
     libstatistics_collector: *Compile,
     ament_index_cpp: *Compile,
     rcpputils: *Compile,
@@ -177,7 +177,7 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
         rclcpp.installHeader(get_output, std.mem.trimLeft(u8, get_output_arg, "include/"));
     }
 
-    zigros.linkDependencyStruct(rclcpp.root_module, deps, .cpp);
+    zigros.linkDependencyStructForwardIncludes(rclcpp, deps, .cpp);
 
     rclcpp.addIncludePath(upstream.path("rclcpp/include"));
     rclcpp.installHeadersDirectory(

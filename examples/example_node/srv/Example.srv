@@ -1,0 +1,4 @@
+builtin_interfaces/Time a
+builtin_interfaces/Time b
+---
+builtin_interfaces/Duration diff

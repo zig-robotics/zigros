@@ -31,6 +31,55 @@ pub fn linkDependencyStruct(module: *std.Build.Module, dependencies: anytype, la
     }
 }
 
+// Like above but exports all includes of linked dependencies
+pub fn linkDependencyStructForwardIncludes(compile: *std.Build.Step.Compile, dependencies: anytype, lang: Language) void {
+    comptime switch (@typeInfo(@TypeOf(dependencies))) {
+        .@"struct" => {},
+        else => @compileError("dependency type must be a struct"),
+    };
+    const deps_info = @typeInfo(@TypeOf(dependencies)).@"struct";
+    inline for (deps_info.fields) |field| {
+        if (field.type == *std.Build.Step.Compile) {
+            compile.linkLibrary(@field(dependencies, field.name));
+            compile.installLibraryHeaders(@field(dependencies, field.name));
+        } else if (field.type == std.Build.LazyPath) {
+            compile.addIncludePath(@field(dependencies, field.name));
+            compile.installHeadersDirectory(@field(dependencies, field.name), "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+        } else if (field.type == Interface) {
+            switch (lang) {
+                .c => {
+                    // TODO this is a copy of interface linkC that also forwards includes
+                    compile.linkLibrary(@field(dependencies, field.name).interface_c);
+                    compile.linkLibrary(@field(dependencies, field.name).typesupport_c);
+                    compile.linkLibrary(@field(dependencies, field.name).typesupport_introspection_c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).interface_c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_introspection_c);
+                },
+                .cpp => {
+
+                    // TODO this is a copy of interface linkC that also forwards includes. figure this out better
+                    compile.linkLibrary(@field(dependencies, field.name).interface_c);
+                    compile.linkLibrary(@field(dependencies, field.name).typesupport_c);
+                    compile.linkLibrary(@field(dependencies, field.name).typesupport_introspection_c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).interface_c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_introspection_c);
+                    // TODO this is a copy of interface linkCpp that also forwards includes. figure this out better
+                    compile.addIncludePath(@field(dependencies, field.name).interface_cpp);
+                    compile.installHeadersDirectory(@field(dependencies, field.name).interface_cpp, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+                    compile.linkLibrary(@field(dependencies, field.name).interface_c);
+                    compile.linkLibrary(@field(dependencies, field.name).typesupport_cpp);
+                    compile.linkLibrary(@field(dependencies, field.name).typesupport_introspection_cpp);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).interface_c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_cpp);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_introspection_cpp);
+                },
+            }
+        }
+    }
+}
+
 pub const PythonDep = union(enum) {
     system: []const u8, // Path to system python executable
     build: *std.Build.Step.Compile,

@@ -63,6 +63,8 @@ pub const Interface = struct {
     typesupport_cpp: *Compile,
     typesupport_introspection_c: *Compile,
     typesupport_introspection_cpp: *Compile,
+    c: *Compile, // Brings in all c libraries into one library
+    cpp: *Compile, // Brings in all cpp libraries into one library, particularly useful since zig doesn't seem to support header only "librarys"
 
     pub fn link(self: Interface, target: *Module) void {
         self.linkC(target);
@@ -291,6 +293,11 @@ pub fn create(
         "-A--typesupports rosidl_typesupport_introspection_cpp",
     );
 
+    var name_tmp: []u8 = undefined;
+    // used for the single library variants which at least for now is always package_name_c or package_name_cpp.
+    name_tmp = std.mem.concat(b.allocator, u8, &.{ package_name, "_cpp" }) catch @panic("OOM");
+    defer b.allocator.free(name_tmp);
+
     to_return.artifacts = .{
         .share = to_return.share_dir.getDirectory(),
         .interface_c = to_return.generator_c.artifact,
@@ -299,7 +306,70 @@ pub fn create(
         .typesupport_cpp = to_return.typesupport_cpp.artifact,
         .typesupport_introspection_c = to_return.typesupport_introspection_c.artifact,
         .typesupport_introspection_cpp = to_return.typesupport_introspection_cpp.artifact,
+        .c = b.addLibrary(.{
+            .name = name_tmp[0 .. package_name.len + "_c".len], // extract just the _c suffix substring
+            .root_module = b.createModule(.{
+                .target = compile_args.target,
+                .optimize = compile_args.optimize,
+                .pic = if (compile_args.linkage == .dynamic) true else null,
+            }),
+            .linkage = compile_args.linkage,
+        }),
+        .cpp = b.addLibrary(.{
+            .name = name_tmp,
+            .root_module = b.createModule(.{
+                .target = compile_args.target,
+                .optimize = compile_args.optimize,
+                .pic = if (compile_args.linkage == .dynamic) true else null,
+            }),
+            .linkage = compile_args.linkage,
+        }),
     };
+
+    to_return.artifacts.c.linkLibrary(deps.rcutils);
+    to_return.artifacts.c.addIncludePath(deps.rosidl_typesupport_interface);
+    to_return.artifacts.c.linkLibrary(deps.rosidl_runtime_c);
+    to_return.artifacts.c.linkLibrary(deps.rosidl_typesupport_c);
+    to_return.artifacts.c.linkLibrary(deps.rosidl_typesupport_introspection_c);
+    to_return.artifacts.c.installLibraryHeaders(deps.rosidl_typesupport_introspection_c);
+    to_return.artifacts.c.linkLibC();
+
+    // Include all generated headers and flag for install
+    to_return.artifacts.c.addIncludePath(to_return.generator_c.generator_output);
+    to_return.artifacts.c.installHeadersDirectory(to_return.generator_c.generator_output, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+    to_return.artifacts.c.addConfigHeader(to_return.generator_c.visibility_control_header);
+    to_return.artifacts.c.installConfigHeader(to_return.generator_c.visibility_control_header);
+    to_return.artifacts.c.addIncludePath(to_return.typesupport_c.generator_output);
+    to_return.artifacts.c.installHeadersDirectory(to_return.typesupport_c.generator_output, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+    to_return.artifacts.c.addIncludePath(to_return.typesupport_introspection_c.generator_output);
+    to_return.artifacts.c.installHeadersDirectory(to_return.typesupport_introspection_c.generator_output, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+    to_return.artifacts.c.addConfigHeader(to_return.typesupport_introspection_c.visibility_control_header);
+    to_return.artifacts.c.installConfigHeader(to_return.typesupport_introspection_c.visibility_control_header);
+
+    // Since the cpp interface generator is header only, we can add the lazy paths up front.
+    to_return.artifacts.cpp.addIncludePath(to_return.artifacts.interface_cpp);
+    to_return.artifacts.cpp.installHeadersDirectory(to_return.artifacts.interface_cpp, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+    to_return.artifacts.c.addIncludePath(to_return.typesupport_cpp.generator_output);
+    to_return.artifacts.c.installHeadersDirectory(to_return.typesupport_cpp.generator_output, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+    to_return.artifacts.c.addIncludePath(to_return.typesupport_introspection_cpp.generator_output);
+    to_return.artifacts.c.installHeadersDirectory(to_return.typesupport_introspection_cpp.generator_output, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+
+    to_return.artifacts.cpp.linkLibrary(deps.rcutils);
+    to_return.artifacts.cpp.addIncludePath(deps.rosidl_typesupport_interface);
+    to_return.artifacts.cpp.linkLibrary(deps.rosidl_runtime_c);
+    to_return.artifacts.cpp.addIncludePath(deps.rosidl_runtime_cpp);
+    to_return.artifacts.cpp.linkLibrary(deps.rosidl_typesupport_cpp);
+    to_return.artifacts.cpp.linkLibrary(deps.rosidl_typesupport_introspection_cpp);
+
+    to_return.artifacts.cpp.linkLibrary(to_return.artifacts.c);
+    to_return.artifacts.cpp.installLibraryHeaders(to_return.artifacts.c);
+
+    if (compile_args.optimize == .ReleaseSmall and compile_args.linkage == .static) {
+        to_return.artifacts.c.link_function_sections = true;
+        to_return.artifacts.c.link_data_sections = true;
+        to_return.artifacts.cpp.link_function_sections = true;
+        to_return.artifacts.cpp.link_data_sections = true;
+    }
 
     return to_return;
 }
@@ -328,6 +398,11 @@ pub fn addInterfaces(
         ) catch @panic("OOM");
 
         self.generator_c.addInterface(base_path, file);
+        // TODO this should tack on the same file added to generator c
+        self.artifacts.c.root_module.link_objects.append(
+            self.artifacts.c.root_module.owner.allocator,
+            self.generator_c.artifact.root_module.link_objects.getLast(),
+        ) catch @panic("OOM");
         self.generator_c.addIdlTuple(idl, self.adapter.output);
         self.generator_c.addTypeDescription(
             idl,
@@ -342,6 +417,11 @@ pub fn addInterfaces(
         );
 
         self.typesupport_introspection_c.addInterface(base_path, file);
+        // TODO this should tack on the same file added to generator c
+        self.artifacts.c.root_module.link_objects.append(
+            self.artifacts.c.root_module.owner.allocator,
+            self.typesupport_introspection_c.artifact.root_module.link_objects.getLast(),
+        ) catch @panic("OOM");
         self.typesupport_introspection_c.addIdlTuple(idl, self.adapter.output);
         self.typesupport_introspection_c.addTypeDescription(
             idl,
@@ -349,6 +429,11 @@ pub fn addInterfaces(
         );
 
         self.typesupport_introspection_cpp.addInterface(base_path, file);
+        // TODO this should tack on the same file added to generator c
+        self.artifacts.cpp.root_module.link_objects.append(
+            self.artifacts.cpp.root_module.owner.allocator,
+            self.typesupport_introspection_cpp.artifact.root_module.link_objects.getLast(),
+        ) catch @panic("OOM");
         self.typesupport_introspection_cpp.addIdlTuple(idl, self.adapter.output);
         self.typesupport_introspection_cpp.addTypeDescription(
             idl,
@@ -356,6 +441,11 @@ pub fn addInterfaces(
         );
 
         self.typesupport_c.addInterface(base_path, file);
+        // TODO this should tack on the same file added to generator c
+        self.artifacts.c.root_module.link_objects.append(
+            self.artifacts.c.root_module.owner.allocator,
+            self.typesupport_c.artifact.root_module.link_objects.getLast(),
+        ) catch @panic("OOM");
         self.typesupport_c.addIdlTuple(idl, self.adapter.output);
         self.typesupport_c.addTypeDescription(
             idl,
@@ -363,6 +453,11 @@ pub fn addInterfaces(
         );
 
         self.typesupport_cpp.addInterface(base_path, file);
+        // TODO this should tack on the same file added to generator c
+        self.artifacts.cpp.root_module.link_objects.append(
+            self.artifacts.cpp.root_module.owner.allocator,
+            self.typesupport_cpp.artifact.root_module.link_objects.getLast(),
+        ) catch @panic("OOM");
         self.typesupport_cpp.addIdlTuple(idl, self.adapter.output);
         self.typesupport_cpp.addTypeDescription(
             idl,
@@ -380,9 +475,15 @@ pub fn addDependency(self: *RosidlGenerator, name: []const u8, dependency: Inter
     dependency.linkC(self.generator_c.artifact.root_module);
     dependency.linkC(self.typesupport_c.artifact.root_module);
     dependency.linkC(self.typesupport_introspection_c.artifact.root_module);
+    // The c artifact is meant to be all encompasing and bring its own dependencies
+    self.artifacts.c.linkLibrary(dependency.c);
+    self.artifacts.c.installLibraryHeaders(dependency.c);
 
     dependency.link(self.typesupport_cpp.artifact.root_module);
     dependency.link(self.typesupport_introspection_cpp.artifact.root_module);
+    // The cpp artifact is meant to be all encompasing and bring its own dependencies
+    self.artifacts.cpp.linkLibrary(dependency.cpp);
+    self.artifacts.cpp.installLibraryHeaders(dependency.cpp);
 }
 
 const PythonArguments = union(enum) {
@@ -411,4 +512,6 @@ pub fn installArtifacts(self: *RosidlGenerator) void {
     b.installArtifact(self.typesupport_cpp.artifact);
     b.installArtifact(self.typesupport_introspection_c.artifact);
     b.installArtifact(self.typesupport_introspection_cpp.artifact);
+    b.installArtifact(self.artifacts.c);
+    b.installArtifact(self.artifacts.cpp);
 }
