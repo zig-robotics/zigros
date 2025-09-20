@@ -5,11 +5,11 @@ const zigros = @import("../../zigros/zigros.zig");
 const CompileArgs = zigros.CompileArgs;
 
 fn pascalToSnake(allocator: std.mem.Allocator, in: []const u8) std.mem.Allocator.Error![]const u8 {
-    var out = std.ArrayList(u8).init(allocator);
+    var out: std.ArrayList(u8) = .empty;
     var prev_is_lower = false;
     if (in.len == 0) return "";
 
-    try out.append(std.ascii.toLower(in[0]));
+    try out.append(allocator, std.ascii.toLower(in[0]));
 
     const isLower = std.ascii.isLower;
     const isUpper = std.ascii.isUpper;
@@ -21,10 +21,10 @@ fn pascalToSnake(allocator: std.mem.Allocator, in: []const u8) std.mem.Allocator
                 (isUpper(current) and isLower(next)) or
                 (isDigit(previous) and isUpper(current)))
             {
-                try out.append('_');
+                try out.append(allocator, '_');
                 prev_is_lower = false;
             }
-            try out.append(std.ascii.toLower(current));
+            try out.append(allocator, std.ascii.toLower(current));
         }
 
         // Boundary condition - Handle the checks on the last character
@@ -32,15 +32,15 @@ fn pascalToSnake(allocator: std.mem.Allocator, in: []const u8) std.mem.Allocator
         const previous = in[in.len - 2];
         const current = in[in.len - 1];
         if ((isDigit(previous) and isUpper(current)) or (isLower(previous) and isUpper(current))) {
-            try out.append('_');
+            try out.append(allocator, '_');
         }
 
-        try out.append(std.ascii.toLower(in[in.len - 1]));
+        try out.append(allocator, std.ascii.toLower(in[in.len - 1]));
     } else if (in.len == 2) {
-        try out.append(std.ascii.toLower(in[1]));
+        try out.append(allocator, std.ascii.toLower(in[1]));
     }
 
-    return out.toOwnedSlice();
+    return out.toOwnedSlice(allocator);
 }
 
 test pascalToSnake {
@@ -163,10 +163,10 @@ pub fn CodeGenerator(
                 .{ package_name, generator_name },
             ) catch @panic("OOM");
 
-            var python_paths = std.ArrayList(std.Build.LazyPath).init(b.allocator);
-            defer python_paths.deinit();
+            var python_paths: std.ArrayList(std.Build.LazyPath) = .empty;
+            defer python_paths.deinit(b.allocator);
 
-            python_paths.appendSlice(&.{
+            python_paths.appendSlice(b.allocator, &.{
                 build_deps.rosidl_parser,
                 build_deps.rosidl_pycommon,
                 build_deps.rosidl_generator_type_description,
@@ -174,7 +174,7 @@ pub fn CodeGenerator(
             }) catch @panic("OOM");
 
             if (additional_python_paths) |paths| {
-                python_paths.appendSlice(paths) catch @panic("OOM");
+                python_paths.appendSlice(b.allocator, paths) catch @panic("OOM");
             }
 
             for (python_paths.items) |path| {
@@ -354,7 +354,7 @@ pub fn CodeGenerator(
 
             switch (code_type) {
                 .c, .cpp => {
-                    var c_files = std.ArrayListUnmanaged([]u8){};
+                    var c_files: std.ArrayList([]u8) = .empty;
 
                     var it = std.mem.tokenizeAny(u8, interface, "/.");
                     var suffix: []const u8 = "";

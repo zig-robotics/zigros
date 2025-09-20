@@ -12,9 +12,11 @@ pub fn build(b: *std.Build) void {
 
     var pub_sub_node = b.addExecutable(.{
         .name = "node",
-        .target = target,
-        .optimize = optimize,
-        .strip = if (optimize == .Debug) false else true,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .strip = if (optimize == .Debug) false else true,
+        }),
     });
 
     pub_sub_node.want_lto = true;

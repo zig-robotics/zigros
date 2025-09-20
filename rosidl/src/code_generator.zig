@@ -19,30 +19,32 @@ const builtin = @import("builtin");
 //  -T the template directory for the generator
 //  -B the python executable to run with
 //  -l if passed, include logging when in debug build
+var debug_allocator = std.heap.DebugAllocator(.{}).init;
 pub fn main() !u8 {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const gpa = if (builtin.mode == .Debug) debug_allocator.allocator() else std.heap.smp_allocator;
     defer if (builtin.mode == .Debug) {
-        _ = gpa.deinit();
+        _ = debug_allocator.deinit();
     };
 
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    var arena = std.heap.ArenaAllocator.init(gpa);
     defer if (builtin.mode == .Debug) {
         arena.deinit();
     };
+    const a = arena.allocator();
 
-    const args = try std.process.argsAlloc(arena.allocator());
+    const args = try std.process.argsAlloc(a);
 
     var package_name: ?[]const u8 = null;
     var generator_name: ?[]const u8 = null;
     var output_dir: ?[]const u8 = null;
     var template_dir: ?[]const u8 = null;
     var program: ?[]const u8 = null;
-    var idl_tuples = std.ArrayList([]const u8).init(arena.allocator());
-    var type_description_tuples = std.ArrayList([]const u8).init(arena.allocator());
-    var interface_files = std.ArrayList([]const u8).init(arena.allocator());
-    var python_path_args = std.ArrayList([]const u8).init(arena.allocator());
+    var idl_tuples: std.ArrayList([]const u8) = .empty;
+    var type_description_tuples: std.ArrayList([]const u8) = .empty;
+    var interface_files: std.ArrayList([]const u8) = .empty;
+    var python_path_args: std.ArrayList([]const u8) = .empty;
     var python: ?[]const u8 = null;
-    var additional_args = std.ArrayList([]const u8).init(arena.allocator());
+    var additional_args: std.ArrayList([]const u8) = .empty;
 
     var logging = false;
 
@@ -52,18 +54,18 @@ pub fn main() !u8 {
     } else if (std.mem.eql(u8, "-X", arg[0..2])) {
         program = arg[2..];
     } else if (std.mem.eql(u8, "-P", arg[0..2])) {
-        try python_path_args.append(arg[2..]);
+        try python_path_args.append(a, arg[2..]);
     } else if (std.mem.eql(u8, "-A", arg[0..2])) {
-        try additional_args.append(arg[2..]);
+        try additional_args.append(a, arg[2..]);
     } else if (std.mem.eql(u8, "-D", arg[0..2])) {
         var it = std.mem.tokenizeAny(u8, arg[2..], ":");
         const idl = it.next() orelse return error.IdlTupleEmpty;
         const path = it.next() orelse return error.IdlTupleMissingDelimiter;
-        try idl_tuples.append(try std.fmt.allocPrint(arena.allocator(), "{s}:{s}", .{ path, idl }));
+        try idl_tuples.append(a, try std.fmt.allocPrint(arena.allocator(), "{s}:{s}", .{ path, idl }));
     } else if (std.mem.eql(u8, "-Y", arg[0..2])) {
-        try type_description_tuples.append(arg[2..]);
+        try type_description_tuples.append(a, arg[2..]);
     } else if (std.mem.eql(u8, "-I", arg[0..2])) {
-        try interface_files.append(arg[2..]);
+        try interface_files.append(a, arg[2..]);
     } else if (std.mem.eql(u8, "-N", arg[0..2])) {
         if (package_name) |_| return error.MultiplePackageNamesProvided;
         package_name = arg[2..];
@@ -86,14 +88,22 @@ pub fn main() !u8 {
         }
     };
 
-    var json_args_str = std.ArrayList(u8).init(arena.allocator());
-
     const ros_interface_dependencies: []const []const u8 = &.{}; // no generator actually uses these it seems, leaving blank for now
     const target_dependencies: []const []const u8 = &.{}; // no generator actually uses these it seems. the upstream IDL files seem to end up here again? also there's boiler plate depenedncies that we don't seem to need?
 
-    try std.json.stringify(.{
+    const args_file_path = try std.fmt.allocPrint(a, "{s}/{s}__arguments.json", .{
+        output_dir orelse return error.OutputDirNotProvided,
+        generator_name orelse return error.GeneratorNameNotProvided,
+    });
+    var output_file = try std.fs.createFileAbsolute(args_file_path, .{});
+    var output_file_buf: [4096]u8 = undefined;
+    defer output_file.close();
+    var json_writer = output_file.writer(&output_file_buf);
+
+    var stringify = std.json.Stringify{ .writer = &json_writer.interface };
+    try stringify.write(.{
         .package_name = package_name orelse return error.PackageNameNotProvided,
-        .output_dir = try std.fmt.allocPrint(arena.allocator(), "{s}/{s}", .{
+        .output_dir = try std.fmt.allocPrint(a, "{s}/{s}", .{
             output_dir orelse return error.OutputDirNotProvided,
             package_name orelse return error.PackageNameNotProvided, // Need to include package name for header paths to work
         }),
@@ -103,16 +113,10 @@ pub fn main() !u8 {
         .ros_interface_dependencies = ros_interface_dependencies,
         .target_dependencies = target_dependencies,
         .type_description_tuples = type_description_tuples.items,
-    }, .{ .whitespace = .indent_2 }, json_args_str.writer());
-
-    const args_file_path = try std.fmt.allocPrint(arena.allocator(), "{s}/{s}__arguments.json", .{
-        output_dir orelse return error.OutputDirNotProvided,
-        generator_name orelse return error.GeneratorNameNotProvided,
     });
-    var output_file = try std.fs.createFileAbsolute(args_file_path, .{});
-    defer output_file.close();
+    try json_writer.interface.flush();
 
-    var argv = try std.ArrayListUnmanaged([]const u8).initCapacity(arena.allocator(), 10);
+    var argv = try std.ArrayList([]const u8).initCapacity(a, 10);
     argv.appendSliceAssumeCapacity(&.{
         python orelse return error.PythonExeNotProvided,
         program orelse return error.NoProgram,
@@ -124,33 +128,29 @@ pub fn main() !u8 {
         // split any space separated args
         var spliterator = std.mem.splitScalar(u8, arg, ' ');
         while (spliterator.next()) |next_arg| {
-            try argv.append(arena.allocator(), next_arg);
+            try argv.append(a, next_arg);
         }
     }
 
-    try output_file.writeAll(json_args_str.items);
     var child = std.process.Child.init(argv.items, arena.allocator());
 
-    var pythonpath_string = std.ArrayList(u8).init(arena.allocator());
-    var pythonpath_writer = pythonpath_string.writer();
+    var pythonpath_string: std.ArrayList(u8) = .empty;
     if (python_path_args.items.len > 0) {
         for (python_path_args.items) |python_path| {
-            try pythonpath_writer.writeAll(python_path);
-            try pythonpath_writer.writeAll(":");
+            try pythonpath_string.print(a, "{s}:", .{python_path});
         }
         // remove trailing :
         pythonpath_string.shrinkRetainingCapacity(pythonpath_string.items.len - 1);
     }
-    var env = std.process.EnvMap.init(arena.allocator());
+    var env = std.process.EnvMap.init(a);
     try env.put("PYTHONPATH", pythonpath_string.items);
     child.env_map = &env;
 
     if (builtin.mode == .Debug and logging) {
-        var debug = std.ArrayList(u8).init(arena.allocator());
-        var writer = debug.writer();
-        try writer.print("PYTHONPATH={s} ", .{pythonpath_string.items});
+        var debug: std.ArrayList(u8) = .empty;
+        try debug.print(a, "PYTHONPATH={s} ", .{pythonpath_string.items});
         for (child.argv) |arg| {
-            try writer.print("{s} ", .{arg});
+            try debug.print(a, "{s} ", .{arg});
         }
         std.log.info("I'm going to run this command: {s}", .{debug.items});
     }

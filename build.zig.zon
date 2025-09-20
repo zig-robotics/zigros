@@ -2,12 +2,12 @@
     .name = .zigros,
     .version = "0.2.0",
     .fingerprint = 0x55b4be52404fcf06, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.0",
     .dependencies = .{
         .python = .{
             .lazy = true,
-            .url = "https://github.com/zig-robotics/cpython/archive/tags/3.11.5-2.tar.gz",
-            .hash = "cpython-3.11.5-2-WIrcCZxxLwStKXRmcaXOS2ML-kLlpjBmOG2gn_ulAFgG",
+            .url = "https://github.com/zig-robotics/cpython/archive/tags/zig-0.15.1.tar.gz",
+            .hash = "cpython-3.11.5-2-7AZrOOVxLwQGOVeZxERwAkvNrAfEhuCxhVuuX3_ox1Qw",
         },
         .empy = .{
             .lazy = true,

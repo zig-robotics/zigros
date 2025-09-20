@@ -461,25 +461,31 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
 
     const type_description_generator = b.addExecutable(.{
         .name = "type_description_generator",
-        .target = b.graph.host, // This is only used in run artifacts, don't cross compile
-        .optimize = optimize,
-        .root_source_file = b.path("rosidl/src/type_description_generator.zig"),
+        .root_module = b.createModule(.{
+            .target = b.graph.host, // This is only used in run artifacts, don't cross compile
+            .optimize = optimize,
+            .root_source_file = b.path("rosidl/src/type_description_generator.zig"),
+        }),
     });
     b.installArtifact(type_description_generator);
 
     const adapter_generator = b.addExecutable(.{
         .name = "adapter_generator",
-        .target = b.graph.host, // This is only used in run artifacts, don't cross compile
-        .optimize = optimize,
-        .root_source_file = b.path("rosidl/src/adapter_generator.zig"),
+        .root_module = b.createModule(.{
+            .target = b.graph.host, // This is only used in run artifacts, don't cross compile
+            .optimize = optimize,
+            .root_source_file = b.path("rosidl/src/adapter_generator.zig"),
+        }),
     });
     b.installArtifact(adapter_generator);
 
     const code_generator = b.addExecutable(.{
         .name = "code_generator",
-        .target = b.graph.host, // This is only used in run artifacts, don't cross compile
-        .optimize = optimize,
-        .root_source_file = b.path("rosidl/src/code_generator.zig"),
+        .root_module = b.createModule(.{
+            .target = b.graph.host, // This is only used in run artifacts, don't cross compile
+            .optimize = optimize,
+            .root_source_file = b.path("rosidl/src/code_generator.zig"),
+        }),
     });
     b.installArtifact(code_generator);
 
@@ -487,9 +493,11 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
     _ = rosidl_generator;
 
     const unit_tests = b.addTest(.{
-        .root_source_file = b.path("rosidl/src/RosidlGeneratorTemplate.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("rosidl/src/RosidlGeneratorTemplate.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
