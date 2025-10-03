@@ -24,8 +24,8 @@ pub fn linkDependencyStruct(module: *std.Build.Module, dependencies: anytype, la
             module.addIncludePath(@field(dependencies, field.name));
         } else if (field.type == Interface) {
             switch (lang) {
-                .c => @field(dependencies, field.name).linkC(module),
-                .cpp => @field(dependencies, field.name).link(module),
+                .c => module.linkLibrary(@field(dependencies, field.name).c),
+                .cpp => module.linkLibrary(@field(dependencies, field.name).cpp),
             }
         }
     }
@@ -48,32 +48,12 @@ pub fn linkDependencyStructForwardIncludes(compile: *std.Build.Step.Compile, dep
         } else if (field.type == Interface) {
             switch (lang) {
                 .c => {
-                    // TODO this is a copy of interface linkC that also forwards includes
-                    compile.linkLibrary(@field(dependencies, field.name).interface_c);
-                    compile.linkLibrary(@field(dependencies, field.name).typesupport_c);
-                    compile.linkLibrary(@field(dependencies, field.name).typesupport_introspection_c);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).interface_c);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_c);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_introspection_c);
+                    compile.linkLibrary(@field(dependencies, field.name).c);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).c);
                 },
                 .cpp => {
-
-                    // TODO this is a copy of interface linkC that also forwards includes. figure this out better
-                    compile.linkLibrary(@field(dependencies, field.name).interface_c);
-                    compile.linkLibrary(@field(dependencies, field.name).typesupport_c);
-                    compile.linkLibrary(@field(dependencies, field.name).typesupport_introspection_c);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).interface_c);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_c);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_introspection_c);
-                    // TODO this is a copy of interface linkCpp that also forwards includes. figure this out better
-                    compile.addIncludePath(@field(dependencies, field.name).interface_cpp);
-                    compile.installHeadersDirectory(@field(dependencies, field.name).interface_cpp, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
-                    compile.linkLibrary(@field(dependencies, field.name).interface_c);
-                    compile.linkLibrary(@field(dependencies, field.name).typesupport_cpp);
-                    compile.linkLibrary(@field(dependencies, field.name).typesupport_introspection_cpp);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).interface_c);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_cpp);
-                    compile.installLibraryHeaders(@field(dependencies, field.name).typesupport_introspection_cpp);
+                    compile.linkLibrary(@field(dependencies, field.name).cpp);
+                    compile.installLibraryHeaders(@field(dependencies, field.name).c);
                 },
             }
         }

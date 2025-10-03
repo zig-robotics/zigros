@@ -1,0 +1,5 @@
+.zig-cache
+zig-out
+examples/example_node/.zig-cache
+examples/example_node/zig-out
+.git

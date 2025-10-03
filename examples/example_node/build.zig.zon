@@ -1,8 +1,8 @@
 .{
     .name = .rclcpp_examples,
-    .version = "0.1.0",
+    .version = "0.2.0",
     .fingerprint = 0xf9423495b0136540, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.0",
     .dependencies = .{
         .zigros = .{
             .path = "../../",

@@ -110,36 +110,6 @@ pub fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGene
     var buf: [256]u8 = undefined;
     return RosidlGenerator.Interface{
         .share = dep.namedWriteFiles(name).getDirectory(),
-        .interface_c = dep.artifact(std.fmt.bufPrint(
-            &buf,
-            "{s}__rosidl_generator_c",
-            .{name},
-        ) catch @panic("Buffer too small")),
-        .interface_cpp = dep.namedWriteFiles(std.fmt.bufPrint(
-            &buf,
-            "{s}__rosidl_generator_cpp",
-            .{name},
-        ) catch @panic("Buffer too small")).getDirectory(),
-        .typesupport_c = dep.artifact(std.fmt.bufPrint(
-            &buf,
-            "{s}__rosidl_typesupport_c",
-            .{name},
-        ) catch @panic("Buffer too small")),
-        .typesupport_cpp = dep.artifact(std.fmt.bufPrint(
-            &buf,
-            "{s}__rosidl_typesupport_cpp",
-            .{name},
-        ) catch @panic("Buffer too small")),
-        .typesupport_introspection_c = dep.artifact(std.fmt.bufPrint(
-            &buf,
-            "{s}__rosidl_typesupport_introspection_c",
-            .{name},
-        ) catch @panic("Buffer too small")),
-        .typesupport_introspection_cpp = dep.artifact(std.fmt.bufPrint(
-            &buf,
-            "{s}__rosidl_typesupport_introspection_cpp",
-            .{name},
-        ) catch @panic("Buffer too small")),
         .c = dep.artifact(std.fmt.bufPrint(
             &buf,
             "{s}_c",
@@ -153,8 +123,6 @@ pub fn extractInterface(dep: *std.Build.Dependency, name: []const u8) RosidlGene
     };
 }
 
-// The build/configure step sets this if its missing lazy deps which allows the ZigRos init call to return null if it's not set
-var lazy_deps_needed = false; // TODO this shouldn't need to be global anymore?
 pub fn createInterface(
     dep: *std.Build.Dependency,
     b: *std.Build,
@@ -166,8 +134,6 @@ pub fn createInterface(
         .scalar => |s| std.mem.eql(u8, s, "true"),
         else => system_python_default,
     } else system_python_default;
-    // if (lazy_deps_needed) return null; // TODO is this still required?
-    // If built python is used, mark the lazy dependencies as required by early fetching and returning null if any are missing
     var python: ?*std.Build.Dependency = null;
     var empy: ?*std.Build.Dependency = null;
     var lark: ?*std.Build.Dependency = null;
@@ -265,6 +231,8 @@ pub fn build(b: *std.Build) void {
 
     // All upstream dependencies are direct ROS packages that do not contain zig build files
     // As such, we don't need to pass any arguments
+
+    var lazy_deps_needed = false;
     const upstream_dependencies = UpstreamDependencies{
         .rcutils = b.dependency("rcutils", .{}),
         .rcpputils = b.dependency("rcpputils", .{}),
@@ -282,6 +250,9 @@ pub fn build(b: *std.Build) void {
         .rmw_cyclonedds = b.dependency("rmw_cyclonedds", .{}),
         .libstatistics_collector = b.dependency("libstatistics_collector", .{}),
         .ament_index = b.dependency("ament_index", .{}),
+        // For building rclcpp as a shared library a patch was needed for how visibility control is handled.
+        // My best guess is that this is an issue with Clang? though I did not spend much time troubleshooting this.
+        // See the rclcpp visibility control repo for more details
         .rclcpp = if (compile_args.linkage == .static) b.lazyDependency("rclcpp", .{}) orelse blk: {
             lazy_deps_needed = true;
             break :blk undefined;
@@ -551,15 +522,6 @@ pub fn build(b: *std.Build) void {
     ros_libraries.rclcpp = rclcpp.buildWithArgs(b, compile_args, .{
         .upstream = upstream_dependencies.rclcpp,
         .rcl = ros_libraries.rcl,
-        // .rcl_yaml_param_parser = ros_libraries.rcl_yaml_param_parser,
-        // .rcl_logging_interface = ros_libraries.rcl_logging_interface,
-        // .yaml = ros_libraries.yaml,
-        // .rcutils = ros_libraries.rcutils,
-        // .rmw = ros_libraries.rmw,
-        // .rosidl_dynamic_typesupport = ros_libraries.rosidl_dynamic_typesupport,
-        // .rosidl_runtime_c = ros_libraries.rosidl_runtime_c,
-        // .rosidl_typesupport_interface = ros_libraries.rosidl_typesupport_interface,
-        // .tracetools = ros_libraries.tracetools,
         .type_description_interfaces = ros_libraries.type_description_interfaces,
         .service_msgs = ros_libraries.service_msgs,
         .builtin_interfaces = ros_libraries.builtin_interfaces,

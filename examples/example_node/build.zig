@@ -35,11 +35,30 @@ pub fn build(b: *std.Build) void {
             .linkage = linkage,
             .@"system-python" = false,
         });
+    // Ensure Lazy dependencies are all loaded
+    if (b.graph.needed_lazy_dependencies.entries.len > 0) return;
 
     pub_sub_node.linkLibCpp();
-    pub_sub_node.linkLibrary(zigros_dep.artifact("rclcpp"));
     pub_sub_node.linkLibrary(zigros_dep.artifact("rmw_cyclonedds_cpp"));
     pub_sub_node.linkLibrary(zigros_dep.artifact("rcl_logging_spdlog"));
+    pub_sub_node.linkLibrary(zigros_dep.artifact("rclcpp"));
+    // The following isn't needed if you're only building statically
+    // This seems to be a bug in dynamic library handling of zig, in that linking a .so does not bring along its own dependencies
+    // This means we need to continue to include dependent .so files that get hit by the executable
+    // The main goal of the zigros project is to provide easy static builds so troubleshooting this has been left to the user
+    // PRs to fix dynamic libraries are welcome
+    if (linkage == .dynamic) {
+        pub_sub_node.linkLibrary(zigros_dep.artifact("rcl_logging_interface"));
+        // This seems extra cursed but couldn't seem to get linking spdlog against only the final exe to work
+        var rcl = zigros_dep.artifact("rcl");
+        rcl.linkLibrary(zigros_dep.artifact("rcl_logging_spdlog"));
+
+        pub_sub_node.linkLibrary(zigros_dep.artifact("rcl"));
+        pub_sub_node.linkLibrary(zigros_dep.artifact("rcutils"));
+        pub_sub_node.linkLibrary(zigros_dep.artifact("rmw"));
+        pub_sub_node.linkLibrary(zigros_dep.artifact("libstatistics_collector"));
+        pub_sub_node.linkLibrary(zigros_dep.artifact("statistics_msgs_cpp"));
+    }
 
     pub_sub_node.addIncludePath(b.path("include"));
     pub_sub_node.addCSourceFiles(.{

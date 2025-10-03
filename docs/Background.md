@@ -14,10 +14,9 @@ Lets have a look at what it takes to build ROS via zig.
 The following script downloads zig and an example node using ZigROS builds it, then runs it.
 
 ```sh
-wget -qO- https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz | tar xJv
-wget -qO- https://github.com/zig-robotics/rclcpp_example/archive/refs/heads/main.tar.gz | tar xzv
-cd rclcpp_example-main; ../zig-linux-x86_64-0.14.0/zig build -Doptimize=ReleaseFast -Dtarget=x86_64-linux-musl --summary none  
-./zig-out/bin/node
+wget -qO- https://ziglang.org/download/0.15.1/zig-x86_64-linux-0.15.1.tar.xz | tar xJv
+cd zigros/examples/example_node; ../../../zig-x86_64-linux-0.15.1/zig build -Doptimize=ReleaseFast -Dtarget=native-native-musl --summary none  
+zig-out/bin/node
 ```
 
 That's it, you now have a fully functional ROS node running.

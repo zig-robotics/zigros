@@ -19,7 +19,7 @@ This page gives a general overview of how to use ZigROS, for more information on
 
 ## Getting started
 
-This assumes you have zig 0.14.0 installed on your system and an rclcpp ROS node to build.
+This assumes you have zig 0.15.1 installed on your system and an rclcpp ROS node to build.
 The first few steps aren't any different from how you would typically build a C project with zig.
 Start by adding a build.zig and a build.zig.zon file to the root of your ROS package.
 Add ZigROS as a dependency in your build.zig.zon.
@@ -27,75 +27,53 @@ Add your ROS source files as an executable in the build.zig file.
 
 Now onto the ZigROS specifics.
 Behind the scenes ZigROS is building and generating code for dozens of ROS packages and their dependencies.
-Because of this there needs to be a dedicated initialize step that looks like:
+This is all hidden from the end user, and as long as you're building statically all that's needed is to include the rclcpp dependency, the RMW implementation (so far only cyclone is supported), and the logger implementation.
+
 
 ```zig
-    const zigros = ZigRos.init(b.dependency("zigros", .{
-        .target = target,
-        .optimize = optimize,
-        .linkage = linkage, // optional, will default to static
-        .@"system-python" = false, // optional, will default to false
-    })) orelse return; // return early if lazy deps are needed
+    const zigros_dep =
+        b.dependency("zigros", .{
+            .target = target,
+            .optimize = optimize,
+            .linkage = linkage,
+            .@"system-python" = false,
+        });
+    // Ensure Lazy dependencies are all loaded
+    if (b.graph.needed_lazy_dependencies.entries.len > 0) return;
+
+    node.linkLibCpp();
+    node.linkLibrary(zigros_dep.artifact("rmw_cyclonedds_cpp"));
+    node.linkLibrary(zigros_dep.artifact("rcl_logging_spdlog"));
+    node.linkLibrary(zigros_dep.artifact("rclcpp"));
 ```
-
-This will return a zigros object with helpers for linking, or null if one or more of its lazy dependencies are missing.
-In the case where it returns null, the standard guidelines apply for missing lazy dependencies.
-The only reason to finish the configure step is to find other lazy dependencies.
-If your project doesn't also have lazy dependencies, simply returning at this point is fine. 
-
-You can then link your standard node executable with:
-
-```zig
-    zigros.linkRclcpp(&pub_sub_node.root_module); // Link rclcpp
-    zigros.linkRmwCycloneDds(&pub_sub_node.root_module); // link your dds of choice
-    zigros.linkLoggerSpd(&pub_sub_node.root_module); // link your logger of choice
-```
-
-Here the general pattern is:
- 1. link rclcpp
- 2. link your DDS of choice (for now only cyclone is supported)
- 3. link your logger of choice (for now only spdlog is supported)
 
 The logger and DDS are typically runtime options, but with ZigROS's focus on static builds and deployments they are now compile time options.
 ROS2 supports statically linked DDSs as long as the interface generation is only done with a single type support.
 Multi typesupport / multi DDS support may be a future option, but would require additional glue to avoid calls to dlopen in the static build.
 [There's more info on this in the design doc if interested.](docs/Design.md#how-does-zigros-statically-link-with-rclcpp)
 
-There is also the option to link against only rcl with `zigros.linkRcl`.
+There is also the option to link against only rcl with the `rcl` artifact.
 
 For a simple single file node, your build.zig file would look something like this:
 ```zig
 const std = @import("std");
 
-const ZigRos = @import("zigros").ZigRos;
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const linkage = b.option(
-        std.builtin.LinkMode,
-        "linkage",
-        "Specify static or dynamic linkage",
-    ) orelse .static;
 
     var pub_sub_node = b.addExecutable(.{
         .name = "node",
         .target = target,
         .optimize = optimize,
-        .strip = if (optimize == .Debug) false else true, // for tiny binaries
     });
-
-    const zigros = ZigRos.init(b.dependency("zigros", .{
-        .target = target,
-        .optimize = optimize,
-        .linkage = linkage,
-        .@"system-python" = false,
-    })) orelse return; // return early if lazy deps are needed
+    // Ensure Lazy dependencies are all loaded
+    if (b.graph.needed_lazy_dependencies.entries.len > 0) return;
 
     pub_sub_node.linkLibCpp();
-    zigros.linkRclcpp(&pub_sub_node.root_module);
-    zigros.linkRmwCycloneDds(&pub_sub_node.root_module);
-    zigros.linkLoggerSpd(&pub_sub_node.root_module);
+    pub_sub_node.linkLibrary(zigros_dep.artifact("rmw_cyclonedds_cpp"));
+    pub_sub_node.linkLibrary(zigros_dep.artifact("rcl_logging_spdlog"));
+    pub_sub_node.linkLibrary(zigros_dep.artifact("rclcpp"));
 
     // Add your node source files here
     pub_sub_node.addCSourceFiles(.{
@@ -112,7 +90,9 @@ pub fn build(b: *std.Build) void {
 
 ```
 
-[See the example repo to see this in action.](https://github.com/zig-robotics/rclcpp_example)
+[See the example node in the examples directory to see this in action.](examples/example_node/build.zig)
+If trying to use dynamic linking, additional dependencies need to be included by hand. 
+The example build contains examples of this.
 
 ## Build arguments
 
@@ -129,9 +109,18 @@ Setting this to true creates a system dependency on python and a few python pack
 ## Custom interfaces
 
 Linking against rclcpp will get you the typical rcl interfaces.
+Additionally ZigROS aims to provide all upstream interfaces out of the box.
+If its missing an interface that's a normal upstream interface, PRs are welcome to fix this.
+ZigROS packages all relevant interface files into a single library for easier consumption.
+This means that the generated code from all three generator types needed for typsupport introspection are packaged into a single artifact.
+See more details about this decision [in the devlog](docs/Devlog.md#2025-09-30-evaluating-installlibraryheaders-to-reduce-dependency-burden).
+
 If your project uses custom interfaces, you can build them using zigros's wrappers for rosidl.
 
 ```zig
+
+const zigros = @import("zigros");
+//...
     var interface = zigros.createInterface(
         b,
         "zigros_example_interface",
@@ -143,14 +132,18 @@ If your project uses custom interfaces, you can build them using zigros's wrappe
         "srv/Example.srv",
     });
 
-    // the example message uses the standard time message, so we must add builtin_interfaces
-    // as a dependency
+    // the example message uses the standard time message, so we must add builtin_interfaces as a dependency
     interface.addDependency("builtin_interfaces", zigros.ros_libraries.builtin_interfaces);
-    interface.artifacts.linkCpp(&pub_sub_node.root_module);
+    // the example interface builds a service, so service_msgs is required
+    interface.addDependency("service_msgs", zigros.extractInterface(zigros_dep, "service_msgs"));
+
+    // or artifacts.c if you're only using rcl
+    pub_sub_node.linkLibrary(interface.artifacts.cpp);
 ```
 
 If you're creating a shared library or want this to function as an intermediate dependency, you can flag the interface for installation with `interface.installArtifacts();`.
-This will install all generated artifacts typically associated with a ROS interface.
+This will install all generated artifacts.
+Note that the generated libraries will not match the same structure as a typical ROS build as all generator output is combined into a single library.
 
 This should be enough to get you going.
 For a more in depth look at how to structure your project to best utilize ZigROS, please see the [how to structure your projcet](docs/Design.md#how-should-i-structure-my-project-to-best-utilize-zigros) section in the design doc.
@@ -158,12 +151,11 @@ For a more in depth look at how to structure your project to best utilize ZigROS
 # Missing features and roadmap
 
 I plan on continuing to integrate core ROS functionality into ZigROS.
-With that said this is being develped in parallel to rclzig and other zig-robotics projects, and I can't make commitments to a specific timeline.
+With that said this is being developed in parallel to rclzig and other zig-robotics projects, and I can't make commitments to a specific timeline.
 
-## Features I hope to have ready for ZigROS 0.3
+## Features I hope to have ready for ZigROS 0.4
  - Actions
  - Remaining interfaces from rcl_interfaces
- - All interfaces from common_interfaces
  - rosbag (at least a build of rosbag2_cpp for you to integrate with your projects manually, possibly some helpers around it)
  - foxglove-bridge (as an example of a 3rd party library, also as an easy way into your project in the absence of the ros cli)
 
@@ -171,7 +163,6 @@ With that said this is being develped in parallel to rclzig and other zig-roboti
  - windows support (would need to cross compile from linux which has some extra odd edge cases)
  - mac support (would also need to support cross compilation but should be more straight forward)
  - additional RMWs (for the single RMW use case only, see below)
-
 
 ## The following are concepts that would require new development (likely as separate repos)
  - A easy to use cli wrapper for launching variations of nodes
@@ -201,6 +192,12 @@ Let me know if this project is interesting to you, I'm looking for other ROS dev
 If there's enough interest, I'll organize a Zulip server for collaboration.
 
 # Changelog
+
+## 0.3.0
+ - Updates to zig version 0.15.1
+ - Adds common interfaces
+ - [Update strategy for building to simplify linking and usage](docs/Devlog.md#2025-09-30-evaluating-installlibraryheaders-to-reduce-dependency-burden)
+ - Build interfaces as a single library per language per interface (related to the above change)
 
 ## 0.2.0
  - Updates to zig version 0.14.0

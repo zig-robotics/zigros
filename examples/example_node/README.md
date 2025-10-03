@@ -8,7 +8,7 @@ Checkout the ZigROS repo for a more in depth intro to the ZigROS library.
 ## How to build
 
 The only dependency this repo has is on the zig compiler.
-Make sure you have zig 0.14 available on your system, then simply build with:
+Make sure you have zig 0.15 available on your system, then simply build with:
 
 ```
 zig build -Doptimize=ReleaseFast -Dtarget=x86_64-linux-musl

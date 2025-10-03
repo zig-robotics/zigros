@@ -69,9 +69,7 @@ pub fn buildWithArgs(b: *std.Build, args: CompileArgs, deps: Deps, build_deps: B
         "msg/ParticipantEntitiesInfo.msg",
     });
 
-    rmw_dds_common.linkLibrary(deps.rosidl_runtime_c);
-
-    interface_generator.artifacts.link(rmw_dds_common.root_module);
+    rmw_dds_common.linkLibrary(interface_generator.artifacts.c);
 
     rmw_dds_common.addIncludePath(upstream.path("rmw_dds_common/include"));
 

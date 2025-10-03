@@ -57,36 +57,8 @@ const RosidlTypesupportIntrospectionCpp = CodeGenerator(
 
 pub const Interface = struct {
     share: LazyPath,
-    interface_c: *Compile,
-    interface_cpp: LazyPath,
-    typesupport_c: *Compile,
-    typesupport_cpp: *Compile,
-    typesupport_introspection_c: *Compile,
-    typesupport_introspection_cpp: *Compile,
     c: *Compile, // Brings in all c libraries into one library
     cpp: *Compile, // Brings in all cpp libraries into one library, particularly useful since zig doesn't seem to support header only "librarys"
-
-    pub fn link(self: Interface, target: *Module) void {
-        self.linkC(target);
-        self.linkCpp(target);
-    }
-
-    // Link against only the c libraries. In theory useful for rcl only builds
-    // though all rmw implementations require c++ so in practice not that useful
-    pub fn linkC(self: Interface, target: *Module) void {
-        target.linkLibrary(self.interface_c);
-        target.linkLibrary(self.typesupport_c);
-        target.linkLibrary(self.typesupport_introspection_c);
-    }
-
-    // Note this function should only be used if linkC has been called previously on the same module,
-    // otherwise the standard link function should be used
-    // use the normal public link function for general c++ lingking
-    pub fn linkCpp(self: Interface, target: *Module) void {
-        target.addIncludePath(self.interface_cpp);
-        target.linkLibrary(self.typesupport_cpp);
-        target.linkLibrary(self.typesupport_introspection_cpp);
-    }
 };
 
 pub const BuildDeps = struct {
@@ -176,136 +148,12 @@ pub fn create(
         .{ .include_extensions = &.{".json"} },
     );
 
-    to_return.generator_c = RosidlGeneratorC.create(
-        b,
-        package_name,
-        compile_args,
-        "rosidl_generator_c",
-        build_deps.rosidl_generator_c,
-        deps,
-        build_deps,
-        &.{.{ .lib = deps.rosidl_runtime_c }},
-        null,
-    );
-    to_return.generator_cpp = RosidlGeneratorCpp.create(
-        b,
-        package_name,
-        compile_args,
-        "rosidl_generator_cpp",
-        build_deps.rosidl_generator_cpp,
-        deps,
-        build_deps,
-        null,
-        &.{build_deps.rosidl_generator_c},
-    );
-
-    to_return.typesupport_introspection_c = RosidlTypesupportIntrospectionC.create(
-        b,
-        package_name,
-        compile_args,
-        "rosidl_typesupport_introspection_c",
-        build_deps.rosidl_typesupport_introspection_c,
-        deps,
-        build_deps,
-        &.{
-            .{ .lib = deps.rosidl_runtime_c },
-            .{ .lib = deps.rosidl_typesupport_introspection_c },
-            .{ .lib = to_return.generator_c.artifact },
-        },
-        &.{build_deps.rosidl_generator_c},
-    );
-
-    to_return.typesupport_introspection_cpp = RosidlTypesupportIntrospectionCpp.create(
-        b,
-        package_name,
-        compile_args,
-        "rosidl_typesupport_introspection_cpp",
-        build_deps.rosidl_typesupport_introspection_cpp,
-        deps,
-        build_deps,
-        &.{
-            .{ .lib = deps.rosidl_runtime_c },
-            .{ .header_only = deps.rosidl_runtime_cpp },
-            .{ .lib = deps.rosidl_typesupport_introspection_cpp },
-            .{ .lib = deps.rosidl_typesupport_cpp },
-            .{ .lib = to_return.generator_c.artifact },
-            .{ .header_only = to_return.generator_cpp.artifact.getDirectory() },
-            .{ .lib = deps.rosidl_typesupport_introspection_c },
-        },
-        &.{
-            build_deps.rosidl_generator_cpp,
-            build_deps.rosidl_generator_c,
-        },
-    );
-
-    to_return.typesupport_c = RosidlTypesupportC.create(
-        b,
-        package_name,
-        compile_args,
-        "rosidl_typesupport_c",
-        build_deps.rosidl_typesupport_c,
-        deps,
-        build_deps,
-        &.{
-            .{ .lib = deps.rosidl_runtime_c },
-            .{ .lib = to_return.generator_c.artifact },
-            .{ .lib = deps.rosidl_typesupport_c },
-            // Note that when building single type support, you must link the type support package
-            // directly against that single type support.
-            .{ .lib = to_return.typesupport_introspection_c.artifact },
-        },
-        &.{build_deps.rosidl_generator_c},
-    );
-
-    // The type supports normally come from the ament index. Search for
-    // `ament_index_register_resource("rosidl_typesupport_c`) on github in ros to get a list
-    // For now we only support the standard dynamic typesupport_introspection versions
-    to_return.typesupport_c.generator.addArg(
-        "-A--typesupports rosidl_typesupport_introspection_c",
-    );
-
-    to_return.typesupport_cpp = RosidlTypesupportCpp.create(
-        b,
-        package_name,
-        compile_args,
-        "rosidl_typesupport_cpp",
-        build_deps.rosidl_typesupport_cpp,
-        deps,
-        build_deps,
-        &.{
-            .{ .lib = deps.rosidl_runtime_c },
-            .{ .lib = to_return.generator_c.artifact },
-            .{ .header_only = to_return.generator_cpp.artifact.getDirectory() },
-            .{ .header_only = deps.rosidl_runtime_cpp },
-            .{ .lib = deps.rosidl_typesupport_cpp },
-            // Note that when building single type support, you must link the type support package
-            // directly against that single type support.
-            .{ .lib = to_return.typesupport_introspection_cpp.artifact },
-            .{ .lib = deps.rosidl_typesupport_introspection_cpp },
-        },
-        &.{build_deps.rosidl_generator_c},
-    );
-
-    // The type supports normally come from the ament index. Search for
-    // `ament_index_register_resource("rosidl_typesupport_c`) on github in ros to get a list
-    // For now we only support the standard dynamic typesupport_introspection versions
-    to_return.typesupport_cpp.generator.addArg(
-        "-A--typesupports rosidl_typesupport_introspection_cpp",
-    );
-
     var name_tmp: []u8 = undefined;
     // used for the single library variants which at least for now is always package_name_c or package_name_cpp.
     name_tmp = std.mem.concat(b.allocator, u8, &.{ package_name, "_cpp" }) catch @panic("OOM");
     defer b.allocator.free(name_tmp);
-
     to_return.artifacts = .{
         .share = to_return.share_dir.getDirectory(),
-        .interface_c = to_return.generator_c.artifact,
-        .interface_cpp = to_return.generator_cpp.artifact.getDirectory(),
-        .typesupport_c = to_return.typesupport_c.artifact,
-        .typesupport_cpp = to_return.typesupport_cpp.artifact,
-        .typesupport_introspection_c = to_return.typesupport_introspection_c.artifact,
-        .typesupport_introspection_cpp = to_return.typesupport_introspection_cpp.artifact,
         .c = b.addLibrary(.{
             .name = name_tmp[0 .. package_name.len + "_c".len], // extract just the _c suffix substring
             .root_module = b.createModule(.{
@@ -325,6 +173,91 @@ pub fn create(
             .linkage = compile_args.linkage,
         }),
     };
+
+    to_return.artifacts.c.linkLibrary(deps.rcutils);
+    to_return.artifacts.c.linkLibrary(deps.rosidl_runtime_c);
+    to_return.artifacts.c.linkLibrary(deps.rosidl_typesupport_c);
+    to_return.artifacts.c.linkLibrary(deps.rosidl_typesupport_introspection_c);
+
+    to_return.artifacts.cpp.addIncludePath(deps.rosidl_runtime_cpp);
+    to_return.artifacts.cpp.linkLibrary(deps.rosidl_typesupport_cpp);
+    to_return.artifacts.cpp.linkLibrary(deps.rosidl_typesupport_introspection_cpp);
+
+    to_return.generator_c = RosidlGeneratorC.create(
+        b,
+        package_name,
+        "rosidl_generator_c",
+        to_return.artifacts.c,
+        build_deps.rosidl_generator_c,
+        build_deps,
+        null,
+    );
+    to_return.generator_cpp = RosidlGeneratorCpp.create(
+        b,
+        package_name,
+        "rosidl_generator_cpp",
+        to_return.artifacts.cpp,
+        build_deps.rosidl_generator_cpp,
+        build_deps,
+        &.{build_deps.rosidl_generator_c},
+    );
+
+    to_return.typesupport_introspection_c = RosidlTypesupportIntrospectionC.create(
+        b,
+        package_name,
+        "rosidl_typesupport_introspection_c",
+        to_return.artifacts.c,
+        build_deps.rosidl_typesupport_introspection_c,
+        build_deps,
+        &.{build_deps.rosidl_generator_c},
+    );
+
+    to_return.typesupport_introspection_cpp = RosidlTypesupportIntrospectionCpp.create(
+        b,
+        package_name,
+        "rosidl_typesupport_introspection_cpp",
+        to_return.artifacts.cpp,
+        build_deps.rosidl_typesupport_introspection_cpp,
+        build_deps,
+        &.{
+            build_deps.rosidl_generator_cpp,
+            build_deps.rosidl_generator_c,
+        },
+    );
+
+    to_return.typesupport_c = RosidlTypesupportC.create(
+        b,
+        package_name,
+        "rosidl_typesupport_c",
+        to_return.artifacts.c,
+        build_deps.rosidl_typesupport_c,
+        build_deps,
+        &.{build_deps.rosidl_generator_c},
+    );
+
+    // The type supports normally come from the ament index. Search for
+    // `ament_index_register_resource("rosidl_typesupport_c`) on github in ros to get a list
+    // For now we only support the standard dynamic typesupport_introspection versions
+    to_return.typesupport_c.generator.addArg(
+        "-A--typesupports rosidl_typesupport_introspection_c",
+    );
+
+    to_return.typesupport_cpp = RosidlTypesupportCpp.create(
+        b,
+        package_name,
+        "rosidl_typesupport_cpp",
+        to_return.artifacts.cpp,
+        build_deps.rosidl_typesupport_cpp,
+        build_deps,
+        &.{build_deps.rosidl_generator_c},
+    );
+
+    // The type supports normally come from the ament index. Search for
+    // `ament_index_register_resource("rosidl_typesupport_c`) on github in ros to get a list
+    // For now we only support the standard dynamic typesupport_introspection versions
+    to_return.typesupport_cpp.generator.addArg(
+        "-A--typesupports rosidl_typesupport_introspection_cpp",
+    );
 
     to_return.artifacts.c.linkLibrary(deps.rcutils);
     to_return.artifacts.c.addIncludePath(deps.rosidl_typesupport_interface);
@@ -347,8 +280,10 @@ pub fn create(
     to_return.artifacts.c.installConfigHeader(to_return.typesupport_introspection_c.visibility_control_header);
 
     // Since the cpp interface generator is header only, we can add the lazy paths up front.
-    to_return.artifacts.cpp.addIncludePath(to_return.artifacts.interface_cpp);
-    to_return.artifacts.cpp.installHeadersDirectory(to_return.artifacts.interface_cpp, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+    to_return.artifacts.cpp.addIncludePath(to_return.generator_cpp.generator_output);
+    to_return.artifacts.c.installHeadersDirectory(to_return.generator_cpp.generator_output, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
+    to_return.artifacts.c.addConfigHeader(to_return.generator_cpp.visibility_control_header);
+    to_return.artifacts.c.installConfigHeader(to_return.generator_cpp.visibility_control_header);
     to_return.artifacts.c.addIncludePath(to_return.typesupport_cpp.generator_output);
     to_return.artifacts.c.installHeadersDirectory(to_return.typesupport_cpp.generator_output, "", .{ .include_extensions = &.{ ".h", ".hpp" } });
     to_return.artifacts.c.addIncludePath(to_return.typesupport_introspection_cpp.generator_output);
@@ -398,11 +333,6 @@ pub fn addInterfaces(
         ) catch @panic("OOM");
 
         self.generator_c.addInterface(base_path, file);
-        // TODO this should tack on the same file added to generator c
-        self.artifacts.c.root_module.link_objects.append(
-            self.artifacts.c.root_module.owner.allocator,
-            self.generator_c.artifact.root_module.link_objects.getLast(),
-        ) catch @panic("OOM");
         self.generator_c.addIdlTuple(idl, self.adapter.output);
         self.generator_c.addTypeDescription(
             idl,
@@ -417,11 +347,6 @@ pub fn addInterfaces(
         );
 
         self.typesupport_introspection_c.addInterface(base_path, file);
-        // TODO this should tack on the same file added to generator c
-        self.artifacts.c.root_module.link_objects.append(
-            self.artifacts.c.root_module.owner.allocator,
-            self.typesupport_introspection_c.artifact.root_module.link_objects.getLast(),
-        ) catch @panic("OOM");
         self.typesupport_introspection_c.addIdlTuple(idl, self.adapter.output);
         self.typesupport_introspection_c.addTypeDescription(
             idl,
@@ -429,11 +354,6 @@ pub fn addInterfaces(
         );
 
         self.typesupport_introspection_cpp.addInterface(base_path, file);
-        // TODO this should tack on the same file added to generator c
-        self.artifacts.cpp.root_module.link_objects.append(
-            self.artifacts.cpp.root_module.owner.allocator,
-            self.typesupport_introspection_cpp.artifact.root_module.link_objects.getLast(),
-        ) catch @panic("OOM");
         self.typesupport_introspection_cpp.addIdlTuple(idl, self.adapter.output);
         self.typesupport_introspection_cpp.addTypeDescription(
             idl,
@@ -441,11 +361,6 @@ pub fn addInterfaces(
         );
 
         self.typesupport_c.addInterface(base_path, file);
-        // TODO this should tack on the same file added to generator c
-        self.artifacts.c.root_module.link_objects.append(
-            self.artifacts.c.root_module.owner.allocator,
-            self.typesupport_c.artifact.root_module.link_objects.getLast(),
-        ) catch @panic("OOM");
         self.typesupport_c.addIdlTuple(idl, self.adapter.output);
         self.typesupport_c.addTypeDescription(
             idl,
@@ -453,11 +368,6 @@ pub fn addInterfaces(
         );
 
         self.typesupport_cpp.addInterface(base_path, file);
-        // TODO this should tack on the same file added to generator c
-        self.artifacts.cpp.root_module.link_objects.append(
-            self.artifacts.cpp.root_module.owner.allocator,
-            self.typesupport_cpp.artifact.root_module.link_objects.getLast(),
-        ) catch @panic("OOM");
         self.typesupport_cpp.addIdlTuple(idl, self.adapter.output);
         self.typesupport_cpp.addTypeDescription(
             idl,
@@ -472,16 +382,8 @@ pub fn addInterfaces(
 pub fn addDependency(self: *RosidlGenerator, name: []const u8, dependency: Interface) void {
     self.type_description.addIncludePath(name, dependency.share);
 
-    dependency.linkC(self.generator_c.artifact.root_module);
-    dependency.linkC(self.typesupport_c.artifact.root_module);
-    dependency.linkC(self.typesupport_introspection_c.artifact.root_module);
-    // The c artifact is meant to be all encompasing and bring its own dependencies
     self.artifacts.c.linkLibrary(dependency.c);
     self.artifacts.c.installLibraryHeaders(dependency.c);
-
-    dependency.link(self.typesupport_cpp.artifact.root_module);
-    dependency.link(self.typesupport_introspection_cpp.artifact.root_module);
-    // The cpp artifact is meant to be all encompasing and bring its own dependencies
     self.artifacts.cpp.linkLibrary(dependency.cpp);
     self.artifacts.cpp.installLibraryHeaders(dependency.cpp);
 }
@@ -499,19 +401,6 @@ pub fn installArtifacts(self: *RosidlGenerator) void {
         .install_dir = .{ .custom = self.package_name },
         .install_subdir = "",
     });
-
-    b.installArtifact(self.generator_c.artifact);
-
-    b.installDirectory(.{
-        .source_dir = self.generator_cpp.artifact.getDirectory(),
-        .install_dir = .header,
-        .install_subdir = "",
-    });
-
-    b.installArtifact(self.typesupport_c.artifact);
-    b.installArtifact(self.typesupport_cpp.artifact);
-    b.installArtifact(self.typesupport_introspection_c.artifact);
-    b.installArtifact(self.typesupport_introspection_cpp.artifact);
     b.installArtifact(self.artifacts.c);
     b.installArtifact(self.artifacts.cpp);
 }

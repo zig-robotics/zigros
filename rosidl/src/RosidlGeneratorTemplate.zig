@@ -122,10 +122,7 @@ pub fn CodeGenerator(
         generator: *std.Build.Step.Run,
         generator_output: std.Build.LazyPath,
         package_name: []const u8,
-        artifact: switch (code_type) {
-            .c, .cpp => *std.Build.Step.Compile,
-            .header_only => *std.Build.Step.WriteFile,
-        },
+        artifact: *std.Build.Step.Compile,
         visibility_control_header: if (visibility_control) |_| *std.Build.Step.ConfigHeader else void,
 
         const Libraries = union(enum) {
@@ -136,12 +133,10 @@ pub fn CodeGenerator(
         pub fn create(
             b: *std.Build,
             package_name: []const u8,
-            compile_args: CompileArgs,
             generator_name: []const u8,
+            artifact: *std.Build.Step.Compile,
             generator_root: std.Build.LazyPath,
-            deps: RosidlGenerator.Deps,
             build_deps: RosidlGenerator.BuildDeps,
-            link_libs: ?[]const Libraries,
             additional_python_paths: ?[]const std.Build.LazyPath,
         ) *Self {
             const to_return = b.allocator.create(Self) catch @panic("OOM");
@@ -156,12 +151,6 @@ pub fn CodeGenerator(
             to_return.package_name = b.dupe(package_name);
             const package_name_upper = b.dupe(package_name);
             _ = std.ascii.upperString(package_name_upper, package_name_upper);
-
-            const artifact_name = std.fmt.allocPrint(
-                b.allocator,
-                "{s}__{s}",
-                .{ package_name, generator_name },
-            ) catch @panic("OOM");
 
             var python_paths: std.ArrayList(std.Build.LazyPath) = .empty;
             defer python_paths.deinit(b.allocator);
@@ -252,59 +241,13 @@ pub fn CodeGenerator(
                 generator_root.addStepDependencies(&to_return.visibility_control_header.step);
             }
 
-            switch (code_type) {
-                .c, .cpp => {
-                    to_return.artifact = b.addLibrary(.{
-                        .name = artifact_name,
-                        .root_module = b.createModule(.{
-                            .target = compile_args.target,
-                            .optimize = compile_args.optimize,
-                            .pic = if (compile_args.linkage == .dynamic) true else null,
-                        }),
-                        .linkage = compile_args.linkage,
-                    });
-
-                    if (compile_args.optimize == .ReleaseSmall and compile_args.linkage == .static) {
-                        to_return.artifact.link_function_sections = true;
-                        to_return.artifact.link_data_sections = true;
-                    }
-
-                    to_return.artifact.addIncludePath(deps.rosidl_typesupport_interface);
-                    if (link_libs) |libs| for (libs) |lib| switch (lib) {
-                        .lib => |l| to_return.artifact.linkLibrary(l),
-                        .header_only => |h| to_return.artifact.addIncludePath(h),
-                    };
-                    to_return.artifact.linkLibrary(deps.rcutils);
-                    to_return.artifact.addIncludePath(to_return.generator_output);
-                    to_return.artifact.installHeadersDirectory(
-                        to_return.generator_output,
-                        "",
-                        .{ .include_extensions = &.{ ".h", ".hpp" } },
-                    );
-                    if (visibility_control) |_| {
-                        to_return.artifact.addConfigHeader(to_return.visibility_control_header);
-                        to_return.artifact.installConfigHeader(to_return.visibility_control_header);
-                    }
-                },
-                .header_only => {
-                    to_return.artifact = b.addNamedWriteFiles(std.fmt.allocPrint(
-                        b.allocator,
-                        "{s}__{s}",
-                        .{ package_name, generator_name },
-                    ) catch @panic("OOM"));
-                    _ = to_return.artifact.addCopyDirectory(
-                        to_return.generator_output.path(b, package_name), // This is a work around for the CPP generator which seems to include the package name automatically where the c generator did not. Other generators may or may not require this extra dir, we'll see
-                        package_name,
-                        .{ .include_extensions = &.{ ".h", ".hpp" } },
-                    );
-                    if (visibility_control) |_| {
-                        _ = to_return.artifact.addCopyFile(
-                            to_return.visibility_control_header.getOutput(),
-                            to_return.visibility_control_header.include_path,
-                        );
-                    }
-                },
-            }
+            to_return.artifact = artifact;
+            to_return.artifact.addIncludePath(to_return.generator_output);
+            to_return.artifact.installHeadersDirectory(
+                to_return.generator_output,
+                "",
+                .{ .include_extensions = &.{ ".h", ".hpp" } },
+            );
 
             return to_return;
         }

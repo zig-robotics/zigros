@@ -1,6 +1,6 @@
 .{
     .name = .zigros,
-    .version = "0.2.0",
+    .version = "0.3.0",
     .fingerprint = 0x55b4be52404fcf06, // Changing this has security and trust implications.
     .minimum_zig_version = "0.15.0",
     .dependencies = .{
